@@ -1,6 +1,7 @@
 use landscape_common::{
+    error::LdError,
     event::{dns::DnsEvent, route::RouteEvent},
-    flow::config::FlowConfig,
+    flow::{config::FlowConfig, FlowEntryMatchMode},
     service::controller_service_v2::{ConfigController, FlowConfigController},
 };
 use landscape_database::{
@@ -28,6 +29,16 @@ impl FlowRuleService {
         let result = Self { store, dns_events_tx, route_events_tx };
         result.after_update_config(result.list().await, vec![]).await;
         result
+    }
+}
+
+impl FlowRuleService {
+    pub async fn find_conflict_by_entry_mode(
+        &self,
+        exclude_id: uuid::Uuid,
+        mode: &FlowEntryMatchMode,
+    ) -> Result<Option<FlowConfig>, LdError> {
+        self.store.find_conflict_by_entry_mode(exclude_id, mode).await
     }
 }
 

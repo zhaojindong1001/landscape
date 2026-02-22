@@ -5,7 +5,11 @@ import { computed } from "vue";
 import { ref } from "vue";
 import FlowMatchRule from "./match/FlowMatchRule.vue";
 import { flow_config_default, FlowTargetTypes } from "@/lib/default_value";
-import { FlowConfig, FlowTarget } from "landscape-types/common/flow";
+import {
+  FlowConfig,
+  FlowEntryRule,
+  FlowTarget,
+} from "landscape-types/common/flow";
 import { useFrontEndStore } from "@/stores/front_end_config";
 interface Props {
   rule_id?: string;
@@ -44,6 +48,23 @@ function exit() {
   rule_json.value = JSON.stringify(rule.value);
 }
 
+function findDuplicateEntryRules(rules: FlowEntryRule[]): string | null {
+  const seen = new Set<string>();
+  for (const rule of rules) {
+    let key: string;
+    if (rule.mode.t === "mac") {
+      key = `mac:${rule.mode.mac_addr.toLowerCase()}`;
+    } else {
+      key = `ip:${rule.mode.ip}/${rule.mode.prefix_len}`;
+    }
+    if (seen.has(key)) {
+      return key;
+    }
+    seen.add(key);
+  }
+  return null;
+}
+
 async function saveRule() {
   if (!rule.value) {
     return;
@@ -53,13 +74,20 @@ async function saveRule() {
     message.warning("**ID** 值不能为 -1, 且不能重复, 否则将会覆盖规则");
     return;
   }
+
+  const dup = findDuplicateEntryRules(rule.value.flow_match_rules);
+  if (dup) {
+    message.warning(`入口匹配规则存在重复项: ${dup}`);
+    return;
+  }
+
   try {
     commit_spin.value = true;
     await push_flow_rules(rule.value);
     console.log("submit success");
     show.value = false;
-  } catch (e: any) {
-    message.error(`${e.response.data}`);
+  } catch (_e: any) {
+    // Error message already shown by axios interceptor
   } finally {
     commit_spin.value = false;
   }
@@ -116,7 +144,7 @@ function switch_target() {}
             <template #msg>
               符合规则的客户端将会使用这个流<br />
               注意优先级 IP > Mac <br />
-              当前未有重复检测， 需要注意不同 Flow 的规则是否重叠
+              注意不同 Flow 的规则是否重叠
             </template>
           </Notice>
         </template>

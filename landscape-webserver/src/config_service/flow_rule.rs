@@ -52,6 +52,34 @@ async fn add_flow_rule(
     State(state): State<LandscapeApp>,
     Json(flow_rule): Json<FlowConfig>,
 ) -> LandscapeApiResult<FlowConfig> {
+    // Check for duplicate entry rules within the submitted config itself
+    {
+        let mut seen = std::collections::HashSet::new();
+        for rule in &flow_rule.flow_match_rules {
+            if !seen.insert(&rule.mode) {
+                return Err(LandscapeApiError::BadRequest(format!(
+                    "入口匹配规则存在重复项: {}",
+                    rule.mode
+                )));
+            }
+        }
+    }
+
+    // Check for overlap with other flows' entry rules via DB query
+    for rule in &flow_rule.flow_match_rules {
+        if let Some(conflict) = state
+            .flow_rule_service
+            .find_conflict_by_entry_mode(flow_rule.id, &rule.mode)
+            .await
+            .map_err(LandscapeApiError::LdError)?
+        {
+            return Err(LandscapeApiError::BadRequest(format!(
+                "入口匹配规则 {} 与流 {} (ID: {}) 中的规则重复",
+                rule.mode, conflict.remark, conflict.flow_id
+            )));
+        }
+    }
+
     let result = state.flow_rule_service.set(flow_rule).await;
     LandscapeApiResp::success(result)
 }

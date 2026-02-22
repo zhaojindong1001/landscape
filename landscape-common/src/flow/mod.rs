@@ -1,4 +1,4 @@
-use std::net::IpAddr;
+use std::{fmt, net::IpAddr};
 
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -32,6 +32,15 @@ pub enum FlowEntryMatchMode {
         #[serde(default = "default_prefix_len")]
         prefix_len: u8,
     },
+}
+
+impl fmt::Display for FlowEntryMatchMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            FlowEntryMatchMode::Mac { mac_addr } => write!(f, "MAC {}", mac_addr),
+            FlowEntryMatchMode::Ip { ip, prefix_len } => write!(f, "IP {}/{}", ip, prefix_len),
+        }
+    }
 }
 
 /// 用于 Flow ebpf 匹配记录操作
