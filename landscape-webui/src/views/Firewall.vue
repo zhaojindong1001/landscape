@@ -18,8 +18,11 @@ onMounted(async () => {
 </script>
 <template>
   <n-flex vertical style="flex: 1; padding: 10px">
-    <n-flex>
+    <n-flex align="center">
       <n-button @click="show_create_modal = true"> 创建 </n-button>
+      <n-text depth="3">
+        当前配置为 IP 黑名单, 命中规则的 IP 将被阻止访问. ICMP 默认不放行.
+      </n-text>
     </n-flex>
 
     <n-divider />
