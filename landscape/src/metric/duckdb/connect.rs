@@ -8,8 +8,8 @@ use std::path::PathBuf;
 pub const SUMMARY_INSERT_SQL: &str = "
     INSERT INTO conn_summaries (
         create_time, cpu_id, src_ip, dst_ip, src_port, dst_port, l4_proto, l3_proto, flow_id, trace_id,
-        last_report_time, total_ingress_bytes, total_egress_bytes, total_ingress_pkts, total_egress_pkts, status, create_time_ms
-    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)
+        last_report_time, total_ingress_bytes, total_egress_bytes, total_ingress_pkts, total_egress_pkts, status, create_time_ms, gress
+    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)
     ON CONFLICT (create_time, cpu_id) DO UPDATE SET
         last_report_time = GREATEST(conn_summaries.last_report_time, EXCLUDED.last_report_time),
         total_ingress_bytes = GREATEST(conn_summaries.total_ingress_bytes, EXCLUDED.total_ingress_bytes),
@@ -41,6 +41,7 @@ pub fn create_summaries_table(conn: &Connection, schema: &str) {
             total_egress_pkts UBIGINT,
             status INTEGER,
             create_time_ms UBIGINT,
+            gress INTEGER,
             PRIMARY KEY (create_time, cpu_id)
         );
         CREATE INDEX IF NOT EXISTS idx_conn_summaries_time ON {}conn_summaries (last_report_time);
@@ -251,6 +252,9 @@ pub fn query_historical_summaries_complex(
     if let Some(s) = params.status {
         where_clauses.push(format!("status = {}", s));
     }
+    if let Some(g) = params.gress {
+        where_clauses.push(format!("gress = {}", g));
+    }
 
     let where_stmt = if where_clauses.is_empty() {
         String::new()
@@ -278,7 +282,7 @@ pub fn query_historical_summaries_complex(
     let stmt_str = format!("
         SELECT
             create_time, cpu_id, src_ip, dst_ip, src_port, dst_port, l4_proto, l3_proto, flow_id, trace_id,
-            total_ingress_bytes, total_egress_bytes, total_ingress_pkts, total_egress_pkts, last_report_time, status, create_time_ms
+            total_ingress_bytes, total_egress_bytes, total_ingress_pkts, total_egress_pkts, last_report_time, status, create_time_ms, gress
         FROM {}
         {}
         ORDER BY {} {}
@@ -317,6 +321,7 @@ pub fn query_historical_summaries_complex(
             last_report_time: row.get::<_, i64>(14)? as u64,
             status: row.get::<_, i64>(15)? as u8,
             create_time_ms,
+            gress: row.get::<_, Option<i64>>(17)?.unwrap_or(0) as u8,
         })
     });
 
@@ -469,7 +474,7 @@ pub fn collect_and_cleanup_old_metrics(
     let stmt = "
         SELECT
             s.create_time, s.cpu_id, s.src_ip, s.dst_ip, s.src_port, s.dst_port, s.l4_proto, s.l3_proto, s.flow_id, s.trace_id,
-            m.report_time, m.ingress_bytes, m.ingress_packets, m.egress_bytes, m.egress_packets, m.status, s.create_time_ms
+            m.report_time, m.ingress_bytes, m.ingress_packets, m.egress_bytes, m.egress_packets, m.status, s.create_time_ms, s.gress
         FROM conn_metrics m
         JOIN conn_summaries s ON m.create_time = s.create_time AND m.cpu_id = s.cpu_id
         WHERE m.report_time < ?1
@@ -499,6 +504,7 @@ pub fn collect_and_cleanup_old_metrics(
             l3_proto: row.get::<_, i64>(7)? as u8,
             flow_id: row.get::<_, i64>(8)? as u8,
             trace_id: row.get::<_, i64>(9)? as u8,
+            gress: row.get::<_, Option<i64>>(17)?.unwrap_or(0) as u8,
             report_time: row.get(10)?,
             create_time_ms: row.get(16)?,
             ingress_bytes: row.get(11)?,

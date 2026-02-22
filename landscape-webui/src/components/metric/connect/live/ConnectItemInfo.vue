@@ -134,12 +134,20 @@ const emit = defineEmits([
             </n-tooltip>
           </n-flex>
 
-          <n-flex style="width: 200px">
+          <n-flex style="width: 240px">
             <n-tag type="success" :bordered="false" size="small">
               {{ conn.l3_proto == 0 ? "IPV4" : "IPV6" }}
             </n-tag>
             <n-tag type="info" :bordered="false" size="small">
               {{ l4_proto(conn.l4_proto) }}
+            </n-tag>
+            <n-tag
+              v-if="conn.gress === 0"
+              type="warning"
+              :bordered="false"
+              size="small"
+            >
+              IN
             </n-tag>
 
             <n-tag

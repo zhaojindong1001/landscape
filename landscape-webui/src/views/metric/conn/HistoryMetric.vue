@@ -80,6 +80,13 @@ const protocolOptions = computed(() => [
   { label: "ICMPv6", value: 58 },
 ]);
 
+// 方向选项
+const gressOptions = computed(() => [
+  { label: t("metric.connect.all_types"), value: null },
+  { label: "Egress", value: 1 },
+  { label: "Ingress", value: 0 },
+]);
+
 const timeRangeOptions = computed(() => [
   { label: "近 5 分钟", value: 300 },
   { label: "近 15 分钟", value: 900 },
@@ -126,6 +133,7 @@ const fetchHistory = async () => {
       l3_proto: historyFilter.l3_proto || undefined,
       l4_proto: historyFilter.l4_proto || undefined,
       flow_id: historyFilter.flow_id || undefined,
+      gress: historyFilter.gress ?? undefined,
       sort_key: sortKey.value,
       sort_order: sortOrder.value,
     });
@@ -339,6 +347,14 @@ onMounted(() => {
         v-model:value="historyFilter.l4_proto"
         :placeholder="$t('metric.connect.filter.proto')"
         :options="protocolOptions"
+        :disabled="loading"
+        clearable
+        style="width: 110px"
+      />
+      <n-select
+        v-model:value="historyFilter.gress"
+        :placeholder="$t('metric.connect.filter.gress')"
+        :options="gressOptions"
         :disabled="loading"
         clearable
         style="width: 110px"

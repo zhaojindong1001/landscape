@@ -36,6 +36,13 @@ const ipTypeOptions = computed(() => [
   { label: "IPv6", value: 1 },
 ]);
 
+// 方向选项
+const gressOptions = computed(() => [
+  { label: t("metric.connect.all_types"), value: null },
+  { label: "Egress", value: 1 },
+  { label: "Ingress", value: 0 },
+]);
+
 // 排序状态
 const sortKey = computed(() => frontEndStore.conn_sort_key);
 const sortOrder = computed(() => frontEndStore.conn_sort_order);
@@ -101,6 +108,8 @@ const filteredConnectMetrics = computed(() => {
     if (liveFilter.l4_proto !== null && item.l4_proto !== liveFilter.l4_proto)
       return false;
     if (liveFilter.flow_id !== null && item.flow_id !== liveFilter.flow_id)
+      return false;
+    if (liveFilter.gress !== null && item.gress !== liveFilter.gress)
       return false;
     return true;
   });
@@ -244,6 +253,13 @@ onMounted(async () => {
         v-model:value="liveFilter.l3_proto"
         :placeholder="$t('metric.connect.filter.l3_proto')"
         :options="ipTypeOptions"
+        clearable
+        style="width: 110px"
+      />
+      <n-select
+        v-model:value="liveFilter.gress"
+        :placeholder="$t('metric.connect.filter.gress')"
+        :options="gressOptions"
         clearable
         style="width: 110px"
       />

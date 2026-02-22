@@ -116,6 +116,7 @@ struct nat_timer_value_v6 {
     u16 trigger_port;
     u8 is_allow_reuse;
     u8 flow_id;
+    u8 gress;
 
     u64 create_time;
     u64 ingress_bytes;

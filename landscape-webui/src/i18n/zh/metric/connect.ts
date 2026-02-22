@@ -30,6 +30,7 @@ export default {
     search_dst: "搜索目的 IP",
     port: "端口",
     create_time: "创建时间",
+    gress: "方向",
   },
   stats: {
     live_src: "源 IP 实时统计",

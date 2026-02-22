@@ -30,6 +30,7 @@ export default {
     search_dst: "Search Dst IP",
     port: "Port",
     create_time: "Create Time",
+    gress: "Direction",
   },
   stats: {
     live_src: "Src IP Real-time Stats",

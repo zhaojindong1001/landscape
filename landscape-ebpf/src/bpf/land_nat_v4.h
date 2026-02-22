@@ -241,6 +241,7 @@ static __always_inline int nat_metric_try_report_v4(struct nat_timer_key_v4 *tim
     event->egress_packets = timer_value->egress_packets;
     event->cpu_id = timer_value->cpu_id;
     event->status = status;
+    event->gress = timer_value->gress;
     bpf_ringbuf_submit(event, 0);
 
     return 0;
@@ -445,7 +446,7 @@ delete_timer:
 static __always_inline int lookup_or_new_ct(struct __sk_buff *skb, u8 l4proto, bool do_new,
                                             const struct inet4_pair *server_nat_pair,
                                             const struct inet4_addr *client_addr,
-                                            __be16 client_port,
+                                            __be16 client_port, u8 gress,
                                             struct nat_timer_value_v4 **timer_value_) {
 #define BPF_LOG_TOPIC "lookup_or_new_ct"
 
@@ -469,7 +470,7 @@ static __always_inline int lookup_or_new_ct(struct __sk_buff *skb, u8 l4proto, b
     timer_value_new.client_port = client_port;
     timer_value_new.client_status = CT_INIT;
     timer_value_new.server_status = CT_INIT;
-    timer_value_new.gress = NAT_MAPPING_EGRESS;
+    timer_value_new.gress = gress;
     timer_value_new.client_addr = *client_addr;
     timer_value_new.create_time = bpf_ktime_get_ns();
     timer_value_new.flow_id = flow_id;

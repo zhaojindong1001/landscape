@@ -156,7 +156,7 @@ int nat_v4_egress(struct __sk_buff *skb) {
 
     struct nat_timer_value_v4 *ct_value;
     ret = lookup_or_new_ct(skb, pkg_offset.l4_protocol, allow_create_mapping, &server_nat_pair,
-                           &ip_pair.src_addr, ip_pair.src_port, &ct_value);
+                           &ip_pair.src_addr, ip_pair.src_port, NAT_MAPPING_EGRESS, &ct_value);
     if (ret == TIMER_NOT_FOUND || ret == TIMER_ERROR) {
         return TC_ACT_SHOT;
     }
@@ -275,7 +275,7 @@ int nat_v4_ingress(struct __sk_buff *skb) {
 
     struct nat_timer_value_v4 *ct_value;
     ret = lookup_or_new_ct(skb, pkg_offset.l4_protocol, do_new_ct, &server_nat_pair, &lan_ip,
-                           nat_ingress_value->port, &ct_value);
+                           nat_ingress_value->port, NAT_MAPPING_INGRESS, &ct_value);
     if (ret == TIMER_NOT_FOUND || ret == TIMER_ERROR) {
         bpf_log_info("connect ret :%u", ret);
         return TC_ACT_SHOT;

@@ -30,6 +30,7 @@ export type ConnectHistoryQueryParams = {
   sort_key?: ConnectSortKey;
   sort_order?: SortOrder;
   status?: number;
+  gress?: number;
 };
 
 export type ConnectHistoryStatus = {
@@ -42,6 +43,7 @@ export type ConnectHistoryStatus = {
   l3_proto: number;
   flow_id: number;
   trace_id: number;
+  gress: number;
   create_time_ms: number;
   total_ingress_bytes: number;
   total_egress_bytes: number;
@@ -64,6 +66,7 @@ export type ConnectMetric = {
   l3_proto: number;
   flow_id: number;
   trace_id: number;
+  gress: number;
   report_time: number;
   create_time_ms: number;
   ingress_bytes: number;
@@ -92,6 +95,7 @@ export type ConnectRealtimeStatus = {
   l3_proto: number;
   flow_id: number;
   trace_id: number;
+  gress: number;
   create_time_ms: number;
   ingress_bps: number;
   egress_bps: number;

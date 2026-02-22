@@ -91,6 +91,7 @@ static __always_inline int nat_metric_try_report_v6(struct nat_timer_key_v6 *tim
     event->egress_packets = timer_value->egress_packets;
     event->cpu_id = timer_value->cpu_id;
     event->status = status;
+    event->gress = timer_value->gress;
     bpf_ringbuf_submit(event, 0);
 
     return 0;
@@ -321,6 +322,7 @@ static __always_inline int search_ipv6_hash_mapping_egress(struct __sk_buff *skb
         __builtin_memset(&new_value, 0, sizeof(new_value));
         new_value.create_time = bpf_ktime_get_ns();
         new_value.flow_id = get_flow_id(skb->mark);
+        new_value.gress = NAT_MAPPING_EGRESS;
         new_value.cpu_id = bpf_get_smp_processor_id();
         update_ipv6_cache_value(skb, ip_pair, &new_value);
         value = insert_ct6_timer(&key, &new_value);
@@ -606,6 +608,7 @@ lookup_or_new_ct6_ingress(struct __sk_buff *skb, struct packet_offset_info *offs
     __builtin_memset(&new_value, 0, sizeof(new_value));
     new_value.create_time = bpf_ktime_get_ns();
     new_value.flow_id = get_flow_id(skb->mark);
+    new_value.gress = NAT_MAPPING_INGRESS;
     new_value.cpu_id = bpf_get_smp_processor_id();
     COPY_ADDR_FROM(new_value.trigger_addr.bytes, ip_pair->src_addr.all);
     new_value.trigger_port = ip_pair->src_port;

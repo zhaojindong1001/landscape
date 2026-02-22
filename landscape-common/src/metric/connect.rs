@@ -77,6 +77,7 @@ pub struct ConnectMetric {
 
     pub flow_id: u8,
     pub trace_id: u8,
+    pub gress: u8,
 
     #[ts(type = "number")]
     pub report_time: u64,
@@ -142,6 +143,7 @@ pub struct ConnectRealtimeStatus {
 
     pub flow_id: u8,
     pub trace_id: u8,
+    pub gress: u8,
 
     #[ts(type = "number")]
     pub create_time_ms: u64,
@@ -228,6 +230,8 @@ pub struct ConnectHistoryQueryParams {
     pub sort_order: Option<SortOrder>,
     #[ts(optional)]
     pub status: Option<u8>, // 0: Active, 1: Closed
+    #[ts(optional)]
+    pub gress: Option<u8>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, TS)]
@@ -245,6 +249,7 @@ pub struct ConnectHistoryStatus {
 
     pub flow_id: u8,
     pub trace_id: u8,
+    pub gress: u8,
 
     #[ts(type = "number")]
     pub create_time_ms: u64,

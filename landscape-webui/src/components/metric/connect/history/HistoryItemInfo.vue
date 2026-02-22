@@ -128,12 +128,20 @@ const emit = defineEmits([
             </n-flex>
           </n-flex>
 
-          <n-flex style="width: 200px">
+          <n-flex style="width: 240px">
             <n-tag type="success" :bordered="false" size="small">
               {{ history.l3_proto == 0 ? "IPV4" : "IPV6" }}
             </n-tag>
             <n-tag type="info" :bordered="false" size="small">
               {{ l4_proto(history.l4_proto) }}
+            </n-tag>
+            <n-tag
+              v-if="history.gress === 0"
+              type="warning"
+              :bordered="false"
+              size="small"
+            >
+              IN
             </n-tag>
           </n-flex>
 

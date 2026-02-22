@@ -139,6 +139,7 @@ pub fn start_db_thread(
                                             state.last_egress_pkts as i64,
                                             status_val as i64,
                                             s.create_time_ms as i64,
+                                            s.gress as i64,
                                         ]) {
                                             tracing::error!("Sync summary failed for {}:{}: {}", s.key.create_time, s.key.cpu_id, e);
                                         } else {
@@ -273,6 +274,7 @@ pub fn start_db_thread(
                                                     l3_proto: metric.l3_proto,
                                                     flow_id: metric.flow_id,
                                                     trace_id: metric.trace_id,
+                                                    gress: metric.gress,
                                                     create_time_ms: metric.create_time_ms,
                                                     ingress_bps: 0,
                                                     egress_bps: 0,
