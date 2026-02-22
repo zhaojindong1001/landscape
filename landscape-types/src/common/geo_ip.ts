@@ -7,6 +7,12 @@ export type GeoIpConfig = {
   values: Array<IpConfig>;
 };
 
+export type GeoIpDirectItem = { key: string; values: Array<IpConfig> };
+
+export type GeoIpSource =
+  | { "t": "url"; url: string; next_update_at: number }
+  | { "t": "direct"; data: Array<GeoIpDirectItem> };
+
 /**
  * Geo IP
  */
@@ -20,10 +26,6 @@ export type GeoIpSourceConfig = {
    */
   update_at: number;
   /**
-   * 文件 URL 地址
-   */
-  url: string;
-  /**
    * 展示名称
    */
   name: string;
@@ -32,9 +34,9 @@ export type GeoIpSourceConfig = {
    */
   enable: boolean;
   /**
-   * 下次更新时间
+   * 来源配置
    */
-  next_update_at: number;
+  source: GeoIpSource;
 };
 
 export type QueryGeoIpConfig = { name: string | null };

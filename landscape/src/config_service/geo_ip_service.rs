@@ -1,6 +1,6 @@
 use landscape_common::store::storev4::LandscapeStoreTrait;
 use landscape_common::{
-    config::geo::{GeoFileCacheKey, GeoIpConfig, GeoIpSourceConfig},
+    config::geo::{GeoFileCacheKey, GeoIpConfig, GeoIpSource, GeoIpSourceConfig},
     database::LandscapeDBTrait,
     ip_mark::{IpMarkInfo, WanIPRuleSource, WanIpRuleConfig},
     service::controller_service_v2::ConfigController,
@@ -96,68 +96,85 @@ impl GeoIpService {
 
     pub async fn refresh(&self, force: bool) {
         // 读取当前规则
-        let mut configs: Vec<GeoIpSourceConfig> = self.store.list().await.unwrap();
-
-        if !force {
-            let now = get_f64_timestamp();
-            configs = configs.into_iter().filter(|e| e.next_update_at < now).collect();
-        }
+        let configs: Vec<GeoIpSourceConfig> = self.store.list().await.unwrap();
 
         let client = Client::new();
         let mut config_names = HashSet::new();
+        let now = get_f64_timestamp();
+
         for mut config in configs {
-            let url = config.url.clone();
             config_names.insert(config.name.clone());
 
-            tracing::debug!("download file: {}", url);
-            let time = Instant::now();
-
-            match client.get(&url).send().await {
-                Ok(resp) if resp.status().is_success() => match resp.bytes().await {
-                    Ok(bytes) => {
-                        let result = landscape_protobuf::read_geo_ips_from_bytes(bytes).await;
-                        // tracing::debug!("get response file: {:?}", result);
-
-                        let mut file_cache_lock = self.file_cache.lock().await;
-                        let mut exist_keys = file_cache_lock
-                            .keys()
-                            .into_iter()
-                            .filter(|k| k.name == config.name)
-                            .collect::<HashSet<GeoFileCacheKey>>();
-
-                        for (key, values) in result {
-                            let info = GeoIpConfig {
-                                name: config.name.clone(),
-                                key: key.to_ascii_uppercase(),
-                                values,
-                            };
-                            exist_keys.remove(&info.get_store_key());
-                            file_cache_lock.set(info);
-                        }
-
-                        for key in exist_keys {
-                            file_cache_lock.del(&key);
-                        }
-
-                        drop(file_cache_lock);
-
-                        config.next_update_at = get_f64_timestamp() + MILL_A_DAY as f64;
-                        let _ = self.store.set(config).await;
-
-                        tracing::debug!(
-                            "handle file done: {}, time: {}s",
-                            url,
-                            time.elapsed().as_secs()
-                        );
-                        let _ = self.dst_ip_events_tx.send(DstIpEvent::GeoIpUpdated).await;
+            match &config.source {
+                GeoIpSource::Url { url, next_update_at, .. } => {
+                    if !force && *next_update_at >= now {
+                        continue;
                     }
-                    Err(e) => tracing::error!("read {} response error: {}", url, e),
-                },
-                Ok(resp) => {
-                    tracing::error!("download {} error, HTTP status: {}", url, resp.status());
+
+                    let url = url.clone();
+                    tracing::debug!("download file: {}", url);
+                    let time = Instant::now();
+
+                    match client.get(&url).send().await {
+                        Ok(resp) if resp.status().is_success() => match resp.bytes().await {
+                            Ok(bytes) => {
+                                let result =
+                                    landscape_protobuf::read_geo_ips_from_bytes(bytes).await;
+
+                                let mut file_cache_lock = self.file_cache.lock().await;
+                                let mut exist_keys = file_cache_lock
+                                    .keys()
+                                    .into_iter()
+                                    .filter(|k| k.name == config.name)
+                                    .collect::<HashSet<GeoFileCacheKey>>();
+
+                                for (key, values) in result {
+                                    let info = GeoIpConfig {
+                                        name: config.name.clone(),
+                                        key: key.to_ascii_uppercase(),
+                                        values,
+                                    };
+                                    exist_keys.remove(&info.get_store_key());
+                                    file_cache_lock.set(info);
+                                }
+
+                                for key in exist_keys {
+                                    file_cache_lock.del(&key);
+                                }
+
+                                drop(file_cache_lock);
+
+                                // Update next_update_at in the source
+                                if let GeoIpSource::Url { next_update_at, .. } = &mut config.source
+                                {
+                                    *next_update_at = get_f64_timestamp() + MILL_A_DAY as f64;
+                                }
+                                let _ = self.store.set(config).await;
+
+                                tracing::debug!(
+                                    "handle file done: {}, time: {}s",
+                                    url,
+                                    time.elapsed().as_secs()
+                                );
+                                let _ = self.dst_ip_events_tx.send(DstIpEvent::GeoIpUpdated).await;
+                            }
+                            Err(e) => tracing::error!("read {} response error: {}", url, e),
+                        },
+                        Ok(resp) => {
+                            tracing::error!(
+                                "download {} error, HTTP status: {}",
+                                url,
+                                resp.status()
+                            );
+                        }
+                        Err(e) => {
+                            tracing::error!("request {} error: {}", url, e);
+                        }
+                    }
                 }
-                Err(e) => {
-                    tracing::error!("request {} error: {}", url, e);
+                GeoIpSource::Direct { data } => {
+                    self.write_direct_to_cache(&config.name, data).await;
+                    let _ = self.dst_ip_events_tx.send(DstIpEvent::GeoIpUpdated).await;
                 }
             }
         }
@@ -170,6 +187,37 @@ impl GeoIpService {
                 .filter(|k| !config_names.contains(&k.name))
                 .collect::<HashSet<GeoFileCacheKey>>();
             for key in need_to_remove {
+                file_cache_lock.del(&key);
+            }
+        }
+    }
+
+    async fn write_direct_to_cache(
+        &self,
+        name: &str,
+        data: &[landscape_common::config::geo::GeoIpDirectItem],
+    ) {
+        let mut file_cache_lock = self.file_cache.lock().await;
+
+        let exist_keys = file_cache_lock
+            .keys()
+            .into_iter()
+            .filter(|k| k.name == name)
+            .collect::<HashSet<GeoFileCacheKey>>();
+
+        let mut new_keys = HashSet::new();
+        for item in data {
+            let info = GeoIpConfig {
+                name: name.to_string(),
+                key: item.key.to_ascii_uppercase(),
+                values: item.values.clone(),
+            };
+            new_keys.insert(info.get_store_key());
+            file_cache_lock.set(info);
+        }
+
+        for key in exist_keys {
+            if !new_keys.contains(&key) {
                 file_cache_lock.del(&key);
             }
         }
@@ -222,9 +270,16 @@ impl ConfigController for GeoIpService {
 
     async fn after_update_config(
         &self,
-        _new_configs: Vec<Self::Config>,
+        new_configs: Vec<Self::Config>,
         _old_configs: Vec<Self::Config>,
     ) {
+        // Refresh Direct configs immediately when updated
+        for config in new_configs {
+            if let GeoIpSource::Direct { ref data } = config.source {
+                self.write_direct_to_cache(&config.name, data).await;
+                let _ = self.dst_ip_events_tx.send(DstIpEvent::GeoIpUpdated).await;
+            }
+        }
     }
 }
 

@@ -15,12 +15,10 @@ pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: DBId,
     pub update_at: DBTimestamp,
-    pub url: String,
     pub name: String,
     pub enable: bool,
-    pub next_update_at: DBTimestamp,
     #[sea_orm(column_type = "Json")]
-    pub geo_keys: DBJson,
+    pub source: DBJson,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -44,11 +42,9 @@ impl From<Model> for GeoSiteSourceConfig {
         GeoSiteSourceConfig {
             id: Some(entity.id),
             update_at: entity.update_at,
-            url: entity.url,
             name: entity.name,
             enable: entity.enable,
-            next_update_at: entity.next_update_at,
-            geo_keys: serde_json::from_value(entity.geo_keys).unwrap(),
+            source: serde_json::from_value(entity.source).unwrap(),
         }
     }
 }
@@ -67,10 +63,8 @@ impl Into<ActiveModel> for GeoSiteSourceConfig {
 impl UpdateActiveModel<ActiveModel> for GeoSiteSourceConfig {
     fn update(self, active: &mut ActiveModel) {
         active.update_at = Set(self.update_at);
-        active.url = Set(self.url);
         active.name = Set(self.name);
         active.enable = Set(self.enable);
-        active.next_update_at = Set(self.next_update_at);
-        active.geo_keys = Set(serde_json::to_value(self.geo_keys).unwrap().into());
+        active.source = Set(serde_json::to_value(self.source).unwrap());
     }
 }

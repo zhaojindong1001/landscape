@@ -27,11 +27,9 @@ async function del() {
 }
 
 const title = computed(() => {
-  if (props.geo_site.name) {
-    return props.geo_site.name;
-  } else {
-    return "undefined";
-  }
+  return frontEndStore.presentation_mode
+    ? mask_string(props.geo_site.name || "undefined")
+    : props.geo_site.name || "undefined";
 });
 
 const show_upload = ref(false);
@@ -41,48 +39,69 @@ const onGeoUpload = async (formData: FormData) => {
 </script>
 <template>
   <n-flex>
-    <n-card :title="title" size="small">
-      <!-- {{ geo_site }} -->
-      <n-descriptions bordered label-placement="top" :column="3">
-        <n-descriptions-item label="名称">
-          {{
-            frontEndStore.presentation_mode
-              ? mask_string(geo_site.name)
-              : geo_site.name
-          }}
-        </n-descriptions-item>
-        <n-descriptions-item label="启用">
-          <n-tag :bordered="false" :type="geo_site.enable ? 'success' : ''">
-            {{ geo_site.enable }}
+    <n-card size="small">
+      <template #header>
+        <StatusTitle :enable="geo_site.enable" :remark="title"></StatusTitle>
+      </template>
+      <n-descriptions bordered label-placement="top" :column="2">
+        <n-descriptions-item label="来源类型">
+          <n-tag
+            :bordered="false"
+            :type="geo_site.source.t === 'url' ? 'info' : 'success'"
+            size="small"
+          >
+            {{ geo_site.source.t === "url" ? "URL" : "Direct" }}
           </n-tag>
         </n-descriptions-item>
-        <n-descriptions-item label="URL">
-          {{
-            frontEndStore.presentation_mode
-              ? mask_string(geo_site.url)
-              : geo_site.url
-          }}
-        </n-descriptions-item>
-        <n-descriptions-item label="下次更新时间">
-          <n-time
-            :time="geo_site.next_update_at"
-            format="yyyy-MM-dd hh:mm:ss"
-            :time-zone="prefStore.timezone"
-          />
-        </n-descriptions-item>
+        <template v-if="geo_site.source.t === 'url'">
+          <n-descriptions-item label="URL">
+            <n-ellipsis style="max-width: 200px">
+              {{
+                frontEndStore.presentation_mode
+                  ? mask_string(geo_site.source.url)
+                  : geo_site.source.url
+              }}
+            </n-ellipsis>
+          </n-descriptions-item>
+          <n-descriptions-item label="下次更新时间">
+            <n-time
+              :time="geo_site.source.next_update_at"
+              format="yyyy-MM-dd hh:mm:ss"
+              :time-zone="prefStore.timezone"
+            />
+          </n-descriptions-item>
+        </template>
+        <template v-if="geo_site.source.t === 'direct'">
+          <n-descriptions-item label="Key 数量">
+            {{ geo_site.source.data.length }}
+          </n-descriptions-item>
+        </template>
       </n-descriptions>
       <template #header-extra>
         <n-flex>
-          <n-button type="info" secondary @click="show_upload = true">
+          <n-button
+            v-if="geo_site.source.t === 'url'"
+            size="small"
+            type="info"
+            secondary
+            @click="show_upload = true"
+          >
             使用文件更新
           </n-button>
-          <n-button type="warning" secondary @click="show_edit_modal = true">
+          <n-button
+            size="small"
+            type="warning"
+            secondary
+            @click="show_edit_modal = true"
+          >
             编辑
           </n-button>
 
           <n-popconfirm @positive-click="del()">
             <template #trigger>
-              <n-button type="error" secondary @click=""> 删除 </n-button>
+              <n-button size="small" type="error" secondary @click="">
+                删除
+              </n-button>
             </template>
             确定删除吗
           </n-popconfirm>

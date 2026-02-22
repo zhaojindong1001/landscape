@@ -11,6 +11,7 @@ pub enum GeoSiteConfigs {
     Enable,
     NextUpdateAt,
     GeoKeys,
+    Source,
 }
 
 #[derive(DeriveIden)]
@@ -23,4 +24,5 @@ pub enum GeoIpConfigs {
     Name,
     Enable,
     NextUpdateAt,
+    Source,
 }

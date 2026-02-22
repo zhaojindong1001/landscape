@@ -2,7 +2,7 @@ use landscape_common::{config::geo::GeoIpSourceConfig, database::repository::Upd
 use sea_orm::{entity::prelude::*, ActiveValue::Set};
 use serde::{Deserialize, Serialize};
 
-use crate::{DBId, DBTimestamp};
+use crate::{DBId, DBJson, DBTimestamp};
 
 pub type GeoIpSourceConfigModel = Model;
 pub type GeoIpSourceConfigEntity = Entity;
@@ -15,10 +15,10 @@ pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: DBId,
     pub update_at: DBTimestamp,
-    pub url: String,
     pub name: String,
     pub enable: bool,
-    pub next_update_at: DBTimestamp,
+    #[sea_orm(column_type = "Json")]
+    pub source: DBJson,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -42,10 +42,9 @@ impl From<Model> for GeoIpSourceConfig {
         GeoIpSourceConfig {
             id: Some(entity.id),
             update_at: entity.update_at,
-            url: entity.url,
             name: entity.name,
             enable: entity.enable,
-            next_update_at: entity.next_update_at,
+            source: serde_json::from_value(entity.source).unwrap(),
         }
     }
 }
@@ -64,9 +63,8 @@ impl Into<ActiveModel> for GeoIpSourceConfig {
 impl UpdateActiveModel<ActiveModel> for GeoIpSourceConfig {
     fn update(self, active: &mut ActiveModel) {
         active.update_at = Set(self.update_at);
-        active.url = Set(self.url);
         active.name = Set(self.name);
         active.enable = Set(self.enable);
-        active.next_update_at = Set(self.next_update_at);
+        active.source = Set(serde_json::to_value(self.source).unwrap());
     }
 }

@@ -18,16 +18,27 @@ pub struct GeoSiteSourceConfig {
     pub id: Option<Uuid>,
     /// 记录更新时间
     pub update_at: f64,
-    /// 文件 URL 地址
-    pub url: String,
     /// 展示名称
     pub name: String,
     /// 启用状态
     pub enable: bool,
-    /// 下次更新时间
-    pub next_update_at: f64,
-    /// 提取文件中的 key
-    pub geo_keys: Vec<String>,
+    /// 来源配置
+    pub source: GeoSiteSource,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, TS)]
+#[serde(tag = "t", rename_all = "snake_case")]
+#[ts(export, export_to = "common/geo_site.d.ts")]
+pub enum GeoSiteSource {
+    Url { url: String, next_update_at: f64, geo_keys: Vec<String> },
+    Direct { data: Vec<GeoSiteDirectItem> },
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, TS)]
+#[ts(export, export_to = "common/geo_site.d.ts")]
+pub struct GeoSiteDirectItem {
+    pub key: String,
+    pub values: Vec<GeoSiteFileConfig>,
 }
 
 impl LandscapeDBStore<Uuid> for GeoSiteSourceConfig {
@@ -112,14 +123,27 @@ pub struct GeoIpSourceConfig {
     pub id: Option<Uuid>,
     /// 记录更新时间
     pub update_at: f64,
-    /// 文件 URL 地址
-    pub url: String,
     /// 展示名称
     pub name: String,
     /// 启用状态
     pub enable: bool,
-    /// 下次更新时间
-    pub next_update_at: f64,
+    /// 来源配置
+    pub source: GeoIpSource,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, TS)]
+#[serde(tag = "t", rename_all = "snake_case")]
+#[ts(export, export_to = "common/geo_ip.ts")]
+pub enum GeoIpSource {
+    Url { url: String, next_update_at: f64 },
+    Direct { data: Vec<GeoIpDirectItem> },
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, TS)]
+#[ts(export, export_to = "common/geo_ip.ts")]
+pub struct GeoIpDirectItem {
+    pub key: String,
+    pub values: Vec<IpConfig>,
 }
 
 impl LandscapeDBStore<Uuid> for GeoIpSourceConfig {

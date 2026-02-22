@@ -10,11 +10,23 @@ export type GeoDomainConfig = {
   values: Array<GeoSiteFileConfig>;
 };
 
+export type GeoSiteDirectItem = {
+  key: string;
+  values: Array<GeoSiteFileConfig>;
+};
+
 export type GeoSiteFileConfig = {
   match_type: DomainMatchType;
   value: string;
   attributes: Array<string>;
 };
+
+export type GeoSiteSource = {
+  "t": "url";
+  url: string;
+  next_update_at: number;
+  geo_keys: Array<string>;
+} | { "t": "direct"; data: Array<GeoSiteDirectItem> };
 
 export type GeoSiteSourceConfig = {
   /**
@@ -26,10 +38,6 @@ export type GeoSiteSourceConfig = {
    */
   update_at: number;
   /**
-   * 文件 URL 地址
-   */
-  url: string;
-  /**
    * 展示名称
    */
   name: string;
@@ -38,13 +46,9 @@ export type GeoSiteSourceConfig = {
    */
   enable: boolean;
   /**
-   * 下次更新时间
+   * 来源配置
    */
-  next_update_at: number;
-  /**
-   * 提取文件中的 key
-   */
-  geo_keys: Array<string>;
+  source: GeoSiteSource;
 };
 
 export type QueryGeoDomainConfig = { name: string | null };
