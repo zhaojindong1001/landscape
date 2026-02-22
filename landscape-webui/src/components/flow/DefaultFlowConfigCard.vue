@@ -2,12 +2,14 @@
 import { ref } from "vue";
 import { ModelBuilder } from "@vicons/carbon";
 import DnsRuleDrawer from "@/components/dns/DnsRuleDrawer.vue";
+import RouteTraceDrawer from "@/components/flow/RouteTraceDrawer.vue";
 import { reset_cache } from "@/api/route/cache";
 
 const emit = defineEmits(["create-flow"]);
 
 const show_dns_rule = ref(false);
 const show_ip_rule = ref(false);
+const show_route_trace = ref(false);
 
 async function create_flow() {
   emit("create-flow");
@@ -55,11 +57,15 @@ async function clear_route_cache() {
           <n-button @click="clear_route_cache" size="small">
             清理路由缓存
           </n-button>
+          <n-button @click="show_route_trace = true" size="small">
+            分流追踪
+          </n-button>
         </n-flex>
       </template>
     </n-empty>
 
     <DnsRuleDrawer v-model:show="show_dns_rule" :flow_id="0"> </DnsRuleDrawer>
     <WanIpRuleDrawer v-model:show="show_ip_rule" :flow_id="0" />
+    <RouteTraceDrawer v-model:show="show_route_trace" />
   </n-card>
 </template>
