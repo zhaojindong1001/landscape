@@ -3,6 +3,7 @@ import { ref, computed } from "vue";
 import { ChangeCatalog } from "@vicons/carbon";
 import { trace_flow_match, trace_verdict } from "@/api/route/trace";
 import { check_domain } from "@/api/dns_service";
+import { reset_cache } from "@/api/route/cache";
 import { useEnrolledDeviceStore } from "@/stores/enrolled_device";
 import FlowExhibit from "@/components/flow/FlowExhibit.vue";
 import type { FlowMatchResult } from "landscape-types/common/route_trace";
@@ -15,7 +16,8 @@ const enrolledDeviceStore = useEnrolledDeviceStore();
 // Step 1 state
 const selectMode = ref(true);
 const selectedDevice = ref<string | null>(null);
-const srcIp = ref("");
+const srcIpv4 = ref("");
+const srcIpv6 = ref("");
 const srcMac = ref("");
 const matchLoading = ref(false);
 const matchResult = ref<FlowMatchResult | null>(null);
@@ -27,34 +29,45 @@ const ipInput = ref("");
 const verdictLoading = ref(false);
 const verdictResult = ref<FlowVerdictResult | null>(null);
 const resolvedDomain = ref("");
+const resetCacheLoading = ref(false);
+
+// Whether current source has MAC (enables IPv6 queries)
+const hasMac = computed(() => !!srcMac.value);
 
 const deviceOptions = computed(() =>
   enrolledDeviceStore.bindings
-    .filter((d) => d.ipv4)
+    .filter((d) => d.ipv4 || d.mac)
     .map((d) => ({
-      label: `${d.name} (${d.ipv4})`,
+      label: `${d.name} (${d.ipv4 || d.mac})`,
       value: d.mac,
     })),
 );
+
+// Whether the flow match button should be enabled
+const canMatch = computed(() => {
+  return !!srcIpv4.value || !!srcIpv6.value || !!srcMac.value;
+});
 
 function onDeviceSelect(mac: string) {
   selectedDevice.value = mac;
   const device = enrolledDeviceStore.bindings.find((d) => d.mac === mac);
   if (device) {
-    srcIp.value = device.ipv4 || "";
+    srcIpv4.value = device.ipv4 || "";
+    srcIpv6.value = device.ipv6 || "";
     srcMac.value = device.mac || "";
   }
 }
 
 async function doFlowMatch() {
-  if (!srcIp.value) return;
+  if (!canMatch.value) return;
   matchLoading.value = true;
   matchResult.value = null;
   verdictResult.value = null;
   try {
     matchResult.value = await trace_flow_match({
-      src_ip: srcIp.value,
-      src_mac: srcMac.value || undefined,
+      src_ipv4: srcIpv4.value || undefined,
+      src_ipv6: srcIpv6.value || undefined,
+      src_mac: srcMac.value || null,
     } as any);
   } finally {
     matchLoading.value = false;
@@ -67,29 +80,51 @@ async function doVerdictByDomain() {
   verdictResult.value = null;
   resolvedDomain.value = domainInput.value;
   try {
-    const dnsResult = await check_domain({
+    const ips: string[] = [];
+
+    // Query A records
+    const dnsResultA = await check_domain({
       flow_id: matchResult.value.effective_flow_id,
       domain: domainInput.value,
       record_type: "A" as any,
     });
-
-    const ips: string[] = [];
-    if (dnsResult.records) {
-      for (const r of dnsResult.records) {
+    if (dnsResultA.records) {
+      for (const r of dnsResultA.records) {
         if (r.rr_type === "A") {
           ips.push(r.data);
         }
       }
     }
 
+    // Query AAAA records when MAC is present (IPv6 capable)
+    if (hasMac.value) {
+      try {
+        const dnsResultAAAA = await check_domain({
+          flow_id: matchResult.value.effective_flow_id,
+          domain: domainInput.value,
+          record_type: "AAAA" as any,
+        });
+        if (dnsResultAAAA.records) {
+          for (const r of dnsResultAAAA.records) {
+            if (r.rr_type === "AAAA") {
+              ips.push(r.data);
+            }
+          }
+        }
+      } catch {
+        // AAAA query failure is non-fatal
+      }
+    }
+
     if (ips.length === 0) {
-      window.$message?.warning("DNS 解析未返回 A 记录");
+      window.$message?.warning("DNS 解析未返回任何记录");
       return;
     }
 
     verdictResult.value = await trace_verdict({
       flow_id: matchResult.value.effective_flow_id,
-      src_ip: srcIp.value,
+      src_ipv4: srcIpv4.value || undefined,
+      src_ipv6: srcIpv6.value || undefined,
       dst_ips: ips,
     } as any);
   } finally {
@@ -105,11 +140,22 @@ async function doVerdictByIp() {
   try {
     verdictResult.value = await trace_verdict({
       flow_id: matchResult.value.effective_flow_id,
-      src_ip: srcIp.value,
+      src_ipv4: srcIpv4.value || undefined,
+      src_ipv6: srcIpv6.value || undefined,
       dst_ips: [ipInput.value],
     } as any);
   } finally {
     verdictLoading.value = false;
+  }
+}
+
+async function doResetCache() {
+  resetCacheLoading.value = true;
+  try {
+    await reset_cache();
+    window.$message?.success("缓存已清除");
+  } finally {
+    resetCacheLoading.value = false;
   }
 }
 
@@ -129,6 +175,22 @@ function formatAction(mark: { action: { t: string }; flow_id: number }) {
       return `Redirect → Flow ${mark.flow_id}`;
     default:
       return mark.action.t;
+  }
+}
+
+function actionTagType(
+  mark: { action: { t: string } } | undefined,
+): "default" | "info" | "success" | "warning" | "error" {
+  if (!mark) return "default";
+  switch (mark.action.t) {
+    case "direct":
+      return "success";
+    case "drop":
+      return "error";
+    case "redirect":
+      return "warning";
+    default:
+      return "info";
   }
 }
 </script>
@@ -169,28 +231,28 @@ function formatAction(mark: { action: { t: string }; flow_id: number }) {
               </template>
               <template v-else>
                 <n-input
-                  v-model:value="srcIp"
-                  placeholder="源 IP"
+                  v-model:value="srcIpv4"
+                  placeholder="源 IPv4 (可选)"
                   style="flex: 1"
                 />
               </template>
             </n-flex>
-            <n-input
-              v-if="!selectMode"
-              v-model:value="srcMac"
-              placeholder="源 MAC (可选)"
-            />
+            <template v-if="!selectMode">
+              <n-input v-model:value="srcIpv6" placeholder="源 IPv6 (可选)" />
+              <n-input v-model:value="srcMac" placeholder="源 MAC (可选)" />
+            </template>
             <n-text
-              v-if="selectMode && srcIp"
+              v-if="selectMode && (srcIpv4 || srcMac)"
               depth="3"
               style="font-size: 12px"
             >
-              IP: {{ srcIp }} &nbsp; MAC: {{ srcMac || "无" }}
+              IPv4: {{ srcIpv4 || "无" }} &nbsp; IPv6:
+              {{ srcIpv6 || "无" }} &nbsp; MAC: {{ srcMac || "无" }}
             </n-text>
             <n-button
               type="primary"
               :loading="matchLoading"
-              :disabled="!srcIp"
+              :disabled="!canMatch"
               @click="doFlowMatch"
               block
               size="small"
@@ -259,7 +321,7 @@ function formatAction(mark: { action: { t: string }; flow_id: number }) {
               <template v-else>
                 <n-input
                   v-model:value="ipInput"
-                  placeholder="输入目标 IP 地址"
+                  placeholder="输入目标 IP 地址 (IPv4 或 IPv6)"
                 />
                 <n-button
                   type="primary"
@@ -278,10 +340,21 @@ function formatAction(mark: { action: { t: string }; flow_id: number }) {
 
         <!-- Verdict results -->
         <template v-if="verdictResult">
-          <n-text v-if="resolvedDomain" depth="3" style="font-size: 12px">
-            域名 {{ resolvedDomain }} 解析到
-            {{ verdictResult.verdicts.length }} 个 IP
-          </n-text>
+          <n-flex v-if="resolvedDomain" align="center" justify="space-between">
+            <n-text depth="3" style="font-size: 12px">
+              域名 {{ resolvedDomain }} 解析到
+              {{ verdictResult.verdicts.length }} 个 IP
+            </n-text>
+            <n-button
+              size="tiny"
+              tertiary
+              type="warning"
+              :loading="resetCacheLoading"
+              @click="doResetCache"
+            >
+              清除路由缓存
+            </n-button>
+          </n-flex>
           <n-card
             v-for="(v, idx) in verdictResult.verdicts"
             :key="idx"
@@ -296,22 +369,41 @@ function formatAction(mark: { action: { t: string }; flow_id: number }) {
             >
               <n-descriptions-item label="IP 规则">
                 <template v-if="v.ip_rule_match">
-                  mark={{ v.ip_rule_match.mark }}, priority={{
-                    v.ip_rule_match.priority
-                  }}
+                  <n-flex align="center" :size="4">
+                    <n-tag
+                      :type="actionTagType(v.ip_rule_match.mark as any)"
+                      size="small"
+                    >
+                      {{ formatAction(v.ip_rule_match.mark as any) }}
+                    </n-tag>
+                    <n-text depth="3" style="font-size: 12px">
+                      优先级: {{ v.ip_rule_match.priority }}
+                    </n-text>
+                  </n-flex>
                 </template>
                 <n-tag v-else type="default" size="small">无匹配</n-tag>
               </n-descriptions-item>
               <n-descriptions-item label="DNS 规则">
                 <template v-if="v.dns_rule_match">
-                  mark={{ v.dns_rule_match.mark }}, priority={{
-                    v.dns_rule_match.priority
-                  }}
+                  <n-flex align="center" :size="4">
+                    <n-tag
+                      :type="actionTagType(v.dns_rule_match.mark as any)"
+                      size="small"
+                    >
+                      {{ formatAction(v.dns_rule_match.mark as any) }}
+                    </n-tag>
+                    <n-text depth="3" style="font-size: 12px">
+                      优先级: {{ v.dns_rule_match.priority }}
+                    </n-text>
+                  </n-flex>
                 </template>
                 <n-tag v-else type="default" size="small">无匹配</n-tag>
               </n-descriptions-item>
               <n-descriptions-item label="最终动作">
-                <n-tag type="info" size="small">
+                <n-tag
+                  :type="actionTagType(v.effective_mark as any)"
+                  size="small"
+                >
                   {{ formatAction(v.effective_mark as any) }}
                 </n-tag>
               </n-descriptions-item>
@@ -320,17 +412,12 @@ function formatAction(mark: { action: { t: string }; flow_id: number }) {
                   <n-tag type="default" size="small">无缓存</n-tag>
                 </template>
                 <template v-else>
-                  <n-flex align="center" :size="4">
-                    <n-tag
-                      :type="v.cache_consistent ? 'success' : 'warning'"
-                      size="small"
-                    >
-                      {{ v.cache_consistent ? "一致" : "不一致" }}
-                    </n-tag>
-                    <n-text depth="3" style="font-size: 12px">
-                      cached={{ v.cached_mark }}
-                    </n-text>
-                  </n-flex>
+                  <n-tag
+                    :type="v.cache_consistent ? 'success' : 'warning'"
+                    size="small"
+                  >
+                    {{ v.cache_consistent ? "一致" : "不一致" }}
+                  </n-tag>
                 </template>
               </n-descriptions-item>
             </n-descriptions>
@@ -339,8 +426,7 @@ function formatAction(mark: { action: { t: string }; flow_id: number }) {
               type="warning"
               style="margin-top: 8px"
             >
-              缓存中的 mark 值 ({{ v.cached_mark }})
-              与当前配置计算的结果不一致，可能需要清理路由缓存。
+              缓存与当前配置计算的结果不一致，可能需要清理路由缓存。
             </n-alert>
           </n-card>
         </template>

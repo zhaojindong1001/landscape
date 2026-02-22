@@ -2,7 +2,11 @@
 import type { FlowMark } from "../flow";
 import type { MacAddr } from "../network";
 
-export type FlowMatchRequest = { src_ip: string; src_mac: MacAddr | null };
+export type FlowMatchRequest = {
+  src_ipv4?: string;
+  src_ipv6?: string;
+  src_mac: MacAddr | null;
+};
 
 export type FlowMatchResult = {
   flow_id_by_mac: number | null;
@@ -10,11 +14,12 @@ export type FlowMatchResult = {
   effective_flow_id: number;
 };
 
-export type FlowRuleMatchResult = { mark: number; priority: number };
+export type FlowRuleMatchResult = { mark: FlowMark; priority: number };
 
 export type FlowVerdictRequest = {
   flow_id: number;
-  src_ip: string;
+  src_ipv4?: string;
+  src_ipv6?: string;
   dst_ips: Array<string>;
 };
 

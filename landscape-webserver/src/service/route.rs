@@ -21,13 +21,13 @@ async fn reset_cache() -> LandscapeApiResult<()> {
 async fn trace_flow_match(
     Json(req): Json<FlowMatchRequest>,
 ) -> LandscapeApiResult<FlowMatchResult> {
-    let result = landscape_ebpf::map_setting::route::trace_flow_match_v4(req);
+    let result = landscape_ebpf::map_setting::route::trace_flow_match(req);
     LandscapeApiResp::success(result)
 }
 
 async fn trace_verdict(
     Json(req): Json<FlowVerdictRequest>,
 ) -> LandscapeApiResult<FlowVerdictResult> {
-    let result = landscape_ebpf::map_setting::route::trace_flow_verdict_v4(req);
+    let result = landscape_ebpf::map_setting::route::trace_flow_verdict(req);
     LandscapeApiResp::success(result)
 }

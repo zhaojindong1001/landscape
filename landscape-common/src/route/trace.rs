@@ -1,4 +1,4 @@
-use std::net::Ipv4Addr;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -10,7 +10,12 @@ use crate::{flow::mark::FlowMark, net::MacAddr};
 #[derive(Serialize, Deserialize, Debug, Clone, TS)]
 #[ts(export, export_to = "common/route_trace.d.ts")]
 pub struct FlowMatchRequest {
-    pub src_ip: Ipv4Addr,
+    #[serde(default)]
+    #[ts(optional)]
+    pub src_ipv4: Option<Ipv4Addr>,
+    #[serde(default)]
+    #[ts(optional)]
+    pub src_ipv6: Option<Ipv6Addr>,
     pub src_mac: Option<MacAddr>,
 }
 
@@ -28,8 +33,13 @@ pub struct FlowMatchResult {
 #[ts(export, export_to = "common/route_trace.d.ts")]
 pub struct FlowVerdictRequest {
     pub flow_id: u32,
-    pub src_ip: Ipv4Addr,
-    pub dst_ips: Vec<Ipv4Addr>,
+    #[serde(default)]
+    #[ts(optional)]
+    pub src_ipv4: Option<Ipv4Addr>,
+    #[serde(default)]
+    #[ts(optional)]
+    pub src_ipv6: Option<Ipv6Addr>,
+    pub dst_ips: Vec<IpAddr>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, TS)]
@@ -41,7 +51,7 @@ pub struct FlowVerdictResult {
 #[derive(Serialize, Deserialize, Debug, Clone, TS)]
 #[ts(export, export_to = "common/route_trace.d.ts")]
 pub struct SingleVerdictResult {
-    pub dst_ip: Ipv4Addr,
+    pub dst_ip: IpAddr,
     pub ip_rule_match: Option<FlowRuleMatchResult>,
     pub dns_rule_match: Option<FlowRuleMatchResult>,
     pub effective_mark: FlowMark,
@@ -53,6 +63,6 @@ pub struct SingleVerdictResult {
 #[derive(Serialize, Deserialize, Debug, Clone, TS)]
 #[ts(export, export_to = "common/route_trace.d.ts")]
 pub struct FlowRuleMatchResult {
-    pub mark: u32,
+    pub mark: FlowMark,
     pub priority: u16,
 }
