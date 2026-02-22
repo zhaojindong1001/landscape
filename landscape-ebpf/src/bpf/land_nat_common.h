@@ -11,12 +11,15 @@
 // 33333
 volatile const __be16 TEST_PORT = 0x3582;
 
+#ifndef LD_CONN_TIMEOUTS_DEFINED
+#define LD_CONN_TIMEOUTS_DEFINED
 // 未建立连接时
 const volatile u64 TCP_SYN_TIMEOUT = 1E9 * 6;
 // TCP 超时时间
 const volatile u64 TCP_TIMEOUT = 1E9 * 60 * 10;
 // UDP 超时时间
 const volatile u64 UDP_TIMEOUT = 1E9 * 60 * 5;
+#endif
 
 // 检查间隔时间
 const volatile u64 REPORT_INTERVAL = 1E9 * 5;
@@ -67,23 +70,23 @@ struct nat_mapping_key_v4 {
 };
 
 //
-struct nat_timer_key {
+struct nat_timer_key_v4 {
     u8 l4proto;
     u8 _pad[3];
-    // Ac:Pc_An:Pn
+    // As:Ps_An:Pn
     struct inet4_pair pair_ip;
 };
 
 //
-struct nat_timer_value {
+struct nat_timer_value_v4 {
     u64 server_status;
     u64 client_status;
     u64 status;
     struct bpf_timer timer;
-    // As
-    struct inet4_addr trigger_saddr;
-    // Ps
-    u16 trigger_port;
+    // Ac
+    struct inet4_addr client_addr;
+    // Pc
+    u16 client_port;
     u8 gress;
     u8 flow_id;
 
@@ -161,5 +164,12 @@ struct search_port_ctx_v4 {
 static __always_inline bool pkt_allow_initiating_ct(u8 pkt_type) {
     return pkt_type == PKT_CONNLESS_V2 || pkt_type == PKT_TCP_SYN_V2;
 }
+
+struct nat_action_v4 {
+    struct inet4_addr from_addr;
+    __be16 from_port;
+    struct inet4_addr to_addr;
+    __be16 to_port;
+};
 
 #endif /* LD_NAT_COMMON_H */

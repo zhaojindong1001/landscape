@@ -58,9 +58,6 @@ struct {
         },
 };
 
-#define NAT_MAPPING_CACHE_SIZE 1024 * 64 * 2
-#define NAT_MAPPING_TIMER_SIZE 1024 * 64 * 2
-
 SEC("tc/egress")
 int nat_v4_egress(struct __sk_buff *skb) {
 #define BPF_LOG_TOPIC "nat_v4_egress <<<"
@@ -93,86 +90,45 @@ int nat_v4_egress(struct __sk_buff *skb) {
         return TC_ACT_SHOT;
     }
 
-    // bpf_log_info("packet :%pI4 : %u -> %pI4 : %u", ip_pair.src_addr.all,
-    //              bpf_ntohs(ip_pair.src_port), ip_pair.dst_addr.all, bpf_ntohs(ip_pair.dst_port));
-
-    // bpf_log_info("packet pkt_type: %d", packet_info.pkt_type);
-    // bpf_log_info("icmp_error_payload_offset: %d", packet_info.icmp_error_payload_offset);
-
     bool is_icmpx_error = is_icmp_error_pkt(&pkg_offset);
     bool allow_create_mapping = !is_icmpx_error && pkt_allow_initiating_ct(pkg_offset.pkt_type);
 
-    // egress  : Ac:Pc -> An:Pn
-    // ingress : An:Pn -> Ac:Pc
+    // Unified lookup: static and dynamic in nat4_mappings
     struct nat_mapping_value_v4 *nat_egress_value, *nat_ingress_value;
 
-    ret = lookup_static_mapping_v4(skb, pkg_offset.l4_protocol, NAT_MAPPING_EGRESS, &ip_pair,
-                                   &nat_ingress_value, &nat_egress_value);
-
+    ret = egress_lookup_or_new_mapping_v4(skb, pkg_offset.l4_protocol, allow_create_mapping,
+                                          &ip_pair, &nat_egress_value, &nat_ingress_value);
     if (ret != TC_ACT_OK) {
-        ret = egress_lookup_or_new_mapping_v4(skb, pkg_offset.l4_protocol, allow_create_mapping,
-                                              &ip_pair, &nat_egress_value, &nat_ingress_value);
-
-        if (ret != TC_ACT_OK) {
-            return TC_ACT_SHOT;
-        }
-
-        // bool allow_reuse_port = get_flow_allow_reuse_port(skb->mark);
-        // if (allow_reuse_port) {
-        //     bpf_log_info("allow_reuse_port: %u, skb->mark: %u", allow_reuse_port, skb->mark);
-        // }
-        if (nat_egress_value->is_allow_reuse == 0 && pkg_offset.l4_protocol != IPPROTO_ICMP) {
-            // PORT REUSE check
-            if (!inet4_addr_equal(&ip_pair.dst_addr, &nat_egress_value->trigger_addr) ||
-                ip_pair.dst_port != nat_egress_value->trigger_port) {
-                bpf_log_info("FLOW_ALLOW_REUSE MARK not set, DROP PACKET");
-                bpf_log_info("dst IP: %pI4,", &ip_pair.dst_addr);
-                bpf_log_info("trg IP: %pI4,", &nat_egress_value->trigger_addr);
-                bpf_log_info("trg port: %u,", bpf_ntohs(nat_egress_value->trigger_port));
-                bpf_log_info("dst port: %u,", bpf_ntohs(ip_pair.dst_port));
-                return TC_ACT_SHOT;
-            }
-        }
-
-        // bpf_log_info("ingress value, %pI4 : %u", &nat_ingress_value->addr,
-        //              bpf_ntohs(nat_ingress_value->port));
-        // bpf_log_info("egress  value, %pI4 : %u", &nat_egress_value->addr.ip,
-        //              bpf_ntohs(nat_egress_value->port));
-
-        if (!nat_egress_value->is_static) {
-            struct nat4_ct_value *ct_value;
-            // ret = lookup_or_new_ct4(pkg_offset.l4_protocol, allow_create_mapping, &ip_pair,
-            //                         nat_egress_value, nat_ingress_value, &ct_value);
-
-            ret = lookup_or_new_ct(skb, pkg_offset.l4_protocol, allow_create_mapping, &ip_pair,
-                                   nat_egress_value, nat_ingress_value, &ct_value);
-            if (ret == TIMER_NOT_FOUND || ret == TIMER_ERROR) {
-                return TC_ACT_SHOT;
-            }
-            if (!is_icmpx_error || ct_value != NULL) {
-                // ct_state_transition_v4(pkg_offset.l4_protocol, pkg_offset.pkt_type,
-                //                        NAT_MAPPING_INGRESS, ct_value);
-                ct_state_transition(pkg_offset.l4_protocol, pkg_offset.pkt_type, NAT_MAPPING_EGRESS,
-                                    ct_value);
-                nat_metric_accumulate(skb, false, ct_value);
-            }
-        }
+        return TC_ACT_SHOT;
     }
-
-    // bpf_log_info("packet src port: %u -> %u", bpf_ntohs(ip_pair.src_port),
-    //              bpf_ntohs(ip_pair.dst_port));
-    // bpf_log_info("modify src port:  %u -> %u", bpf_ntohs(nat_egress_value->port),
-    //              bpf_ntohs(ip_pair.dst_port));
-
-    // bpf_log_info("src IP: %pI4,", &ip_pair.src_addr);
-    // bpf_log_info("dst IP: %pI4,", &ip_pair.dst_addr);
-    // bpf_log_info("mapping IP: %pI4,", &nat_egress_value->addr);
 
     if (nat_egress_value == NULL) {
         bpf_log_info("nat_egress_value is null");
         return TC_ACT_SHOT;
     }
 
+    // Port reuse check (skip for static and ICMP)
+    if (!nat_egress_value->is_static && nat_egress_value->is_allow_reuse == 0 &&
+        pkg_offset.l4_protocol != IPPROTO_ICMP) {
+        if (ip_pair.dst_addr.addr != nat_egress_value->trigger_addr ||
+            ip_pair.dst_port != nat_egress_value->trigger_port) {
+            bpf_log_info("FLOW_ALLOW_REUSE MARK not set, DROP PACKET");
+            return TC_ACT_SHOT;
+        }
+    }
+
+    // Sync is_allow_reuse when dst==trigger
+    if (!nat_egress_value->is_static && ip_pair.dst_addr.addr == nat_egress_value->trigger_addr &&
+        ip_pair.dst_port == nat_egress_value->trigger_port) {
+        bool allow_reuse = get_flow_allow_reuse_port(skb->mark);
+        u8 new_val = allow_reuse ? 1 : 0;
+        nat_egress_value->is_allow_reuse = new_val;
+        if (nat_ingress_value) {
+            nat_ingress_value->is_allow_reuse = new_val;
+        }
+    }
+
+    // Determine An (NAT addr on WAN side)
     struct inet4_addr nat_addr;
     if (nat_egress_value->is_static) {
         struct wan_ip_info_key wan_search_key = {0};
@@ -190,12 +146,37 @@ int nat_v4_egress(struct __sk_buff *skb) {
         nat_addr.addr = nat_egress_value->addr;
     }
 
-    // bpf_log_info("nat_ip IP: %pI4:%u", &nat_addr.all, bpf_ntohs(nat_egress_value->port));
+    // CT key: {As:Ps, An:Pn} — static NAT also creates CT
+    struct inet4_pair server_nat_pair = {
+        .src_addr = ip_pair.dst_addr,
+        .src_port = ip_pair.dst_port,
+        .dst_addr = nat_addr,
+        .dst_port = nat_egress_value->port,
+    };
 
-    // modify source
+    struct nat_timer_value_v4 *ct_value;
+    ret = lookup_or_new_ct(skb, pkg_offset.l4_protocol, allow_create_mapping, &server_nat_pair,
+                           &ip_pair.src_addr, ip_pair.src_port, &ct_value);
+    if (ret == TIMER_NOT_FOUND || ret == TIMER_ERROR) {
+        return TC_ACT_SHOT;
+    }
+    if (!is_icmpx_error || ct_value != NULL) {
+        ct_state_transition(pkg_offset.l4_protocol, pkg_offset.pkt_type, NAT_MAPPING_EGRESS,
+                            ct_value);
+        nat_metric_accumulate(skb, false, ct_value);
+    }
+
+    // modify source: Ac:Pc → An:Pn
+    struct nat_action_v4 action = {
+        .from_addr = ip_pair.src_addr,
+        .from_port = ip_pair.src_port,
+        .to_addr = nat_addr,
+        .to_port = nat_egress_value->port,
+    };
+
     ret = modify_headers_v4(skb, is_icmpx_error, pkg_offset.l4_protocol, current_l3_offset,
                             pkg_offset.l4_offset, pkg_offset.icmp_error_inner_l4_offset, true,
-                            &ip_pair.src_addr, ip_pair.src_port, &nat_addr, nat_egress_value->port);
+                            &action);
     if (ret) {
         bpf_log_error("failed to update csum, err:%d", ret);
         return TC_ACT_SHOT;
@@ -239,61 +220,13 @@ int nat_v4_ingress(struct __sk_buff *skb) {
     }
 
     bool is_icmpx_error = is_icmp_error_pkt(&pkg_offset);
-    bool allow_create_mapping = !is_icmpx_error && pkg_offset.l4_protocol == IPPROTO_ICMP;
 
-    // egress  : Ac:Pc -> An:Pn
-    // ingress : An:Pn -> Ac:Pc
-    struct nat_mapping_value_v4 *nat_egress_value, *nat_ingress_value;
+    // Unified lookup with addr=0 fallback for static
+    struct nat_mapping_value_v4 *nat_ingress_value;
 
-    // 先检查是否有静态映射
-    ret = lookup_static_mapping_v4(skb, pkg_offset.l4_protocol, NAT_MAPPING_INGRESS, &ip_pair,
-                                   &nat_ingress_value, &nat_egress_value);
+    ret = ingress_lookup_or_new_mapping4(skb, pkg_offset.l4_protocol, &ip_pair, &nat_ingress_value);
     if (ret != TC_ACT_OK) {
-        ret = ingress_lookup_or_new_mapping4(skb, pkg_offset.l4_protocol, allow_create_mapping,
-                                             &ip_pair, &nat_egress_value, &nat_ingress_value);
-
-        if (ret != TC_ACT_OK) {
-            return TC_ACT_SHOT;
-        }
-
-        // bpf_log_info("ingress value, %pI4 : %u", &nat_ingress_value->addr,
-        //              bpf_ntohs(nat_ingress_value->port));
-        // bpf_log_info("egress  value, %pI4 : %u", &nat_egress_value->addr.ip,
-        //              bpf_ntohs(nat_egress_value->port));
-
-        if (!nat_egress_value->is_static) {
-            struct nat_timer_value *ct_timer_value;
-            // ret = lookup_or_new_ct4(pkg_offset.l4_protocol, allow_create_mapping, &ip_pair,
-            //                        nat_egress_value, nat_ingress_value, &ct_timer_value);
-            ret = lookup_or_new_ct(skb, pkg_offset.l4_protocol, allow_create_mapping, &ip_pair,
-                                   nat_egress_value, nat_ingress_value, &ct_timer_value);
-            if (ret == TIMER_NOT_FOUND || ret == TIMER_ERROR) {
-                bpf_log_info("connect ret :%u", ret);
-                return TC_ACT_SHOT;
-            }
-            if (!is_icmpx_error || ct_timer_value != NULL) {
-                // ct_state_transition_v4(pkg_offset.l4_protocol, pkg_offset.pkt_type,
-                // NAT_MAPPING_EGRESS,
-                //                     ct_timer_value);
-
-                ct_state_transition(pkg_offset.l4_protocol, pkg_offset.pkt_type,
-                                    NAT_MAPPING_INGRESS, ct_timer_value);
-                nat_metric_accumulate(skb, true, ct_timer_value);
-            }
-        }
-        // } else {
-        //     bpf_log_info("packet dst port: %u -> %u", bpf_ntohs(ip_pair.src_port),
-        //                  bpf_ntohs(ip_pair.dst_port));
-        //     bpf_log_info("modify dst port:  %u -> %u", bpf_ntohs(ip_pair.src_port),
-        //                  bpf_ntohs(nat_ingress_value->port));
-
-        //     bpf_log_info("src IP: %pI4,", &ip_pair.src_addr);
-        //     bpf_log_info("dst IP: %pI4,", &ip_pair.dst_addr);
-        //     bpf_log_info("real IP: %pI4,", &nat_ingress_value->addr);
-    } else {
-        u32 mark = skb->mark;
-        barrier_var(mark);
-        skb->mark = replace_cache_mask(mark, INGRESS_STATIC_MARK);
+        return TC_ACT_SHOT;
     }
 
     if (nat_ingress_value == NULL) {
@@ -301,6 +234,24 @@ int nat_v4_ingress(struct __sk_buff *skb) {
         return TC_ACT_SHOT;
     }
 
+    // Port reuse check: src!=trigger && is_allow_reuse==0 → DROP (skip for static and ICMP)
+    if (!nat_ingress_value->is_static && nat_ingress_value->is_allow_reuse == 0 &&
+        pkg_offset.l4_protocol != IPPROTO_ICMP) {
+        if (ip_pair.src_addr.addr != nat_ingress_value->trigger_addr ||
+            ip_pair.src_port != nat_ingress_value->trigger_port) {
+            bpf_log_info("ingress FLOW_ALLOW_REUSE not set, DROP PACKET");
+            return TC_ACT_SHOT;
+        }
+    }
+
+    // Static mark for routing
+    if (nat_ingress_value->is_static) {
+        u32 mark = skb->mark;
+        barrier_var(mark);
+        skb->mark = replace_cache_mask(mark, INGRESS_STATIC_MARK);
+    }
+
+    // Determine lan_ip (Ac)
     struct inet4_addr lan_ip;
     if (nat_ingress_value->is_static && nat_ingress_value->addr == 0) {
         lan_ip.addr = ip_pair.dst_addr.addr;
@@ -308,16 +259,44 @@ int nat_v4_ingress(struct __sk_buff *skb) {
         lan_ip.addr = nat_ingress_value->addr;
     }
 
-    // if (nat_ingress_value->is_static && nat_ingress_value->addr.ip != 0) {
-    //     bpf_log_info("lan_ip IP: %pI4:%u", &lan_ip.all, bpf_ntohs(nat_ingress_value->port));
-    // }
+    // CT key: {As:Ps, An:Pn} = {src, dst}
+    struct inet4_pair server_nat_pair = {
+        .src_addr = ip_pair.src_addr,
+        .src_port = ip_pair.src_port,
+        .dst_addr = ip_pair.dst_addr,
+        .dst_port = ip_pair.dst_port,
+    };
 
-    // bpf_log_info("nat_ip IP: %pI4:%u", &lan_ip.all, bpf_ntohs(nat_ingress_value->port));
+    // Dynamic: CT must already exist (do_new=false)
+    // Static: can create CT for inbound connections
+    bool do_new_ct = nat_ingress_value->is_static
+                         ? (!is_icmpx_error && pkt_allow_initiating_ct(pkg_offset.pkt_type))
+                         : false;
 
-    // modify source
+    struct nat_timer_value_v4 *ct_value;
+    ret = lookup_or_new_ct(skb, pkg_offset.l4_protocol, do_new_ct, &server_nat_pair, &lan_ip,
+                           nat_ingress_value->port, &ct_value);
+    if (ret == TIMER_NOT_FOUND || ret == TIMER_ERROR) {
+        bpf_log_info("connect ret :%u", ret);
+        return TC_ACT_SHOT;
+    }
+    if (!is_icmpx_error || ct_value != NULL) {
+        ct_state_transition(pkg_offset.l4_protocol, pkg_offset.pkt_type, NAT_MAPPING_INGRESS,
+                            ct_value);
+        nat_metric_accumulate(skb, true, ct_value);
+    }
+
+    // modify dest: An:Pn → Ac:Pc
+    struct nat_action_v4 action = {
+        .from_addr = ip_pair.dst_addr,
+        .from_port = ip_pair.dst_port,
+        .to_addr = lan_ip,
+        .to_port = nat_ingress_value->port,
+    };
+
     ret = modify_headers_v4(skb, is_icmpx_error, pkg_offset.l4_protocol, current_l3_offset,
                             pkg_offset.l4_offset, pkg_offset.icmp_error_inner_l4_offset, false,
-                            &ip_pair.dst_addr, ip_pair.dst_port, &lan_ip, nat_ingress_value->port);
+                            &action);
     if (ret) {
         bpf_log_error("failed to update csum, err:%d", ret);
         return TC_ACT_SHOT;

@@ -4,6 +4,7 @@
 
 #include <vmlinux.h>
 #include "../landscape.h"
+#include "../land_nat_common.h"
 
 #define STATIC_NAT_MAPPING_CACHE_SIZE 1024 * 64
 #define NAT_MAPPING_CACHE_SIZE 1024 * 64 * 2
@@ -38,18 +39,6 @@ struct nat_mapping_value {
     u64 active_time;
 };
 
-struct static_nat_mapping_key_v4 {
-    u32 prefixlen;
-    // INGRESS: NAT Mapping Port
-    // EGRESS: lan Clinet Port
-    u16 port;
-    u8 gress;
-    u8 l4_protocol;
-    // INGRESS:  only use u32 for ifindex match
-    // EGRESS: match lan client ip
-    __be32 addr;
-};
-
 struct nat_mapping_value_v4 {
     __be32 addr;
     // TODO： 触发这个关系的 ip 或者端口
@@ -65,15 +54,6 @@ struct nat_mapping_value_v4 {
 
 struct {
     __uint(type, BPF_MAP_TYPE_LPM_TRIE);
-    __type(key, struct static_nat_mapping_key_v4);
-    __type(value, struct nat_mapping_value_v4);
-    __uint(max_entries, STATIC_NAT_MAPPING_CACHE_SIZE);
-    __uint(map_flags, BPF_F_NO_PREALLOC);
-    __uint(pinning, LIBBPF_PIN_BY_NAME);
-} nat4_static_map SEC(".maps");
-
-struct {
-    __uint(type, BPF_MAP_TYPE_LPM_TRIE);
     __type(key, struct static_nat_mapping_key);
     __type(value, struct nat_mapping_value);
     __uint(max_entries, STATIC_NAT_MAPPING_CACHE_SIZE);
@@ -81,33 +61,22 @@ struct {
     __uint(pinning, LIBBPF_PIN_BY_NAME);
 } static_nat_mappings SEC(".maps");
 
-struct nat4_ct_key {
-    u8 l4proto;
-    u8 _pad[3];
-    // Ac:Pc_An:Pn
-    struct inet4_pair pair_ip;
-};
-
-//
-struct nat4_ct_value {
-    u64 client_status;
-    u64 server_status;
-    // As
-    __be32 trigger_saddr;
-    // Ps
-    u16 trigger_port;
-    u8 gress;
-    u8 _pad;
-    u64 create_time;
-};
+struct {
+    __uint(type, BPF_MAP_TYPE_HASH);
+    __type(key, struct nat_mapping_key_v4);
+    __type(value, struct nat_mapping_value_v4);
+    __uint(max_entries, NAT_MAPPING_CACHE_SIZE);
+    __uint(pinning, LIBBPF_PIN_BY_NAME);
+} nat4_mappings SEC(".maps");
 
 struct {
-    __uint(type, BPF_MAP_TYPE_LRU_HASH);
-    __type(key, struct nat4_ct_key);
-    __type(value, struct nat4_ct_value);
+    __uint(type, BPF_MAP_TYPE_HASH);
+    __type(key, struct nat_timer_key_v4);
+    __type(value, struct nat_timer_value_v4);
     __uint(max_entries, NAT_MAPPING_TIMER_SIZE);
+    __uint(map_flags, BPF_F_NO_PREALLOC);
     __uint(pinning, LIBBPF_PIN_BY_NAME);
-} nat4_conn_map SEC(".maps");
+} nat4_mapping_timer SEC(".maps");
 
 #define NAT_CONN_ACTIVE 1
 #define NAT_CONN_DELETE 2

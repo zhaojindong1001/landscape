@@ -5,10 +5,21 @@ use libbpf_rs::{MapCore, MapFlags};
 
 use crate::{
     map_setting::share_map::types::{
-        nat_mapping_value, nat_mapping_value_v4, static_nat_mapping_key, static_nat_mapping_key_v4,
+        nat_mapping_value, nat_mapping_value_v4, static_nat_mapping_key,
     },
     LANDSCAPE_IPV6_TYPE, MAP_PATHS, NAT_MAPPING_EGRESS, NAT_MAPPING_INGRESS,
 };
+
+#[repr(C)]
+#[derive(Debug, Default, Clone, Copy)]
+pub(crate) struct NatMappingKeyV4 {
+    pub gress: u8,
+    pub l4proto: u8,
+    pub from_port: u16,
+    pub from_addr: u32,
+}
+
+unsafe impl plain::Plain for NatMappingKeyV4 {}
 
 #[derive(Debug)]
 pub(crate) struct StaticNatMappingV4Item {
@@ -26,7 +37,7 @@ pub(crate) struct StaticNatMappingV6Item {
     pub l4_protocol: u8,
 }
 
-pub(crate) fn add_static_nat4_mapping<'obj, T, I>(nat4_static_map: &T, mappings: I)
+pub(crate) fn add_static_nat4_mapping<'obj, T, I>(nat4_mappings: &T, mappings: I)
 where
     T: MapCore,
     I: IntoIterator<Item = StaticNatMappingV4Item>,
@@ -42,20 +53,20 @@ where
     let counts = (mapping_iter.len() * 2) as u32;
 
     for static_mapping in mapping_iter {
-        let ingress_mapping_key = static_nat_mapping_key_v4 {
-            prefixlen: 32, // current only match port
-            port: static_mapping.wan_port.to_be(),
+        // INGRESS key: {INGRESS, proto, wan_port, 0}
+        let ingress_mapping_key = NatMappingKeyV4 {
             gress: NAT_MAPPING_INGRESS,
-            l4_protocol: static_mapping.l4_protocol,
-            ..Default::default()
+            l4proto: static_mapping.l4_protocol,
+            from_port: static_mapping.wan_port.to_be(),
+            from_addr: 0, // addr=0 for static ingress
         };
 
-        let mut egress_mapping_key = static_nat_mapping_key_v4 {
-            prefixlen: 64,
-            port: static_mapping.lan_port.to_be(),
+        // EGRESS key: {EGRESS, proto, lan_port, lan_ip}
+        let egress_mapping_key = NatMappingKeyV4 {
             gress: NAT_MAPPING_EGRESS,
-            l4_protocol: static_mapping.l4_protocol,
-            ..Default::default()
+            l4proto: static_mapping.l4_protocol,
+            from_port: static_mapping.lan_port.to_be(),
+            from_addr: static_mapping.lan_ip.to_bits().to_be(),
         };
 
         let mut ingress_mapping_value = nat_mapping_value_v4::default();
@@ -67,11 +78,7 @@ where
         egress_mapping_value.is_static = 1;
 
         let ipv4_addr = static_mapping.lan_ip;
-        egress_mapping_key.addr = ipv4_addr.to_bits().to_be();
         ingress_mapping_value.addr = ipv4_addr.to_bits().to_be();
-        if ipv4_addr.is_unspecified() {
-            egress_mapping_key.prefixlen = 32;
-        }
 
         keys.extend_from_slice(unsafe { plain::as_bytes(&ingress_mapping_key) });
         values.extend_from_slice(unsafe { plain::as_bytes(&ingress_mapping_value) });
@@ -84,10 +91,9 @@ where
         return;
     }
 
-    if let Err(e) =
-        nat4_static_map.update_batch(&keys, &values, counts, MapFlags::ANY, MapFlags::ANY)
+    if let Err(e) = nat4_mappings.update_batch(&keys, &values, counts, MapFlags::ANY, MapFlags::ANY)
     {
-        tracing::error!("counts: {counts:?}, update nat4_static_map error:{e:?}");
+        tracing::error!("counts: {counts:?}, update nat4_mappings error:{e:?}");
     }
 }
 
@@ -184,9 +190,8 @@ where
         }
     }
 
-    let nat4_static_map =
-        libbpf_rs::MapHandle::from_pinned_path(&MAP_PATHS.nat4_static_map).unwrap();
-    add_static_nat4_mapping(&nat4_static_map, v4_rules);
+    let nat4_mappings = libbpf_rs::MapHandle::from_pinned_path(&MAP_PATHS.nat4_mappings).unwrap();
+    add_static_nat4_mapping(&nat4_mappings, v4_rules);
     let static_nat_mappings =
         libbpf_rs::MapHandle::from_pinned_path(&MAP_PATHS.static_nat_mappings).unwrap();
     add_static_nat6_mapping(&static_nat_mappings, v6_rules);
@@ -220,15 +225,14 @@ where
             }
         }
     }
-    let nat4_static_map =
-        libbpf_rs::MapHandle::from_pinned_path(&MAP_PATHS.nat4_static_map).unwrap();
-    del_static_nat4_mapping(&nat4_static_map, v4_rules);
+    let nat4_mappings = libbpf_rs::MapHandle::from_pinned_path(&MAP_PATHS.nat4_mappings).unwrap();
+    del_static_nat4_mapping(&nat4_mappings, v4_rules);
     let static_nat_mappings =
         libbpf_rs::MapHandle::from_pinned_path(&MAP_PATHS.static_nat_mappings).unwrap();
     del_static_nat6_mapping(&static_nat_mappings, v6_rules);
 }
 
-pub(crate) fn del_static_nat4_mapping<'obj, T, I>(nat4_static_map: &T, mappings: I)
+pub(crate) fn del_static_nat4_mapping<'obj, T, I>(nat4_mappings: &T, mappings: I)
 where
     T: MapCore,
     I: IntoIterator<Item = StaticNatMappingV4Item>,
@@ -243,27 +247,21 @@ where
     let counts = (mapping_iter.len() * 2) as u32;
 
     for static_mapping in mapping_iter {
-        let ingress_mapping_key = static_nat_mapping_key_v4 {
-            prefixlen: 32, // current only match port
-            port: static_mapping.wan_port.to_be(),
+        // INGRESS key: {INGRESS, proto, wan_port, 0}
+        let ingress_mapping_key = NatMappingKeyV4 {
             gress: NAT_MAPPING_INGRESS,
-            l4_protocol: static_mapping.l4_protocol,
-            ..Default::default()
+            l4proto: static_mapping.l4_protocol,
+            from_port: static_mapping.wan_port.to_be(),
+            from_addr: 0,
         };
 
-        let mut egress_mapping_key = static_nat_mapping_key_v4 {
-            prefixlen: 64,
-            port: static_mapping.lan_port.to_be(),
+        // EGRESS key: {EGRESS, proto, lan_port, lan_ip}
+        let egress_mapping_key = NatMappingKeyV4 {
             gress: NAT_MAPPING_EGRESS,
-            l4_protocol: static_mapping.l4_protocol,
-            ..Default::default()
+            l4proto: static_mapping.l4_protocol,
+            from_port: static_mapping.lan_port.to_be(),
+            from_addr: static_mapping.lan_ip.to_bits().to_be(),
         };
-
-        let ipv4_addr = static_mapping.lan_ip;
-        egress_mapping_key.addr = ipv4_addr.to_bits().to_be();
-        if ipv4_addr.is_unspecified() {
-            egress_mapping_key.prefixlen = 32;
-        }
 
         keys.extend_from_slice(unsafe { plain::as_bytes(&ingress_mapping_key) });
 
@@ -274,8 +272,8 @@ where
         return;
     }
 
-    if let Err(e) = nat4_static_map.delete_batch(&keys, counts, MapFlags::ANY, MapFlags::ANY) {
-        tracing::error!("update nat4_static_map error:{e:?}");
+    if let Err(e) = nat4_mappings.delete_batch(&keys, counts, MapFlags::ANY, MapFlags::ANY) {
+        tracing::error!("delete nat4_mappings error:{e:?}");
     }
 }
 

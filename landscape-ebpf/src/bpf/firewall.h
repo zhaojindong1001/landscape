@@ -12,11 +12,13 @@
 #define IPV6_FIREWALL_EGRESS_PROG_INDEX 1
 #define IPV6_FIREWALL_INGRESS_PROG_INDEX 1
 
+#ifndef LD_CONN_TIMEOUTS_DEFINED
+#define LD_CONN_TIMEOUTS_DEFINED
 const volatile u64 TCP_SYN_TIMEOUT = 1E9 * 6;
-const volatile u64 TCP_TCP_TRANS = 1E9 * 60 * 4;
 const volatile u64 TCP_TIMEOUT = 1E9 * 60 * 10;
-
 const volatile u64 UDP_TIMEOUT = 1E9 * 60 * 5;
+#endif
+const volatile u64 TCP_TCP_TRANS = 1E9 * 60 * 4;
 
 const volatile u64 CONN_EST_TIMEOUT = 1E9 * 5;
 const volatile u64 CONN_TCP_RELEASE = 1E9 * 60 * 10;
@@ -148,9 +150,9 @@ struct firewall_static_ct_action {
 };
 
 enum firewall_report_status {
-    FIREWALL_REPORT_NONE = 0,      // 没到时间，不需要上报
-    FIREWALL_REPORT_SUCCESS = 1,   // 成功上报（且完成清理）
-    FIREWALL_REPORT_CONFLICT = 2   // 到了时间，但 CAS 没成功，没争夺到上报权
+    FIREWALL_REPORT_NONE = 0,     // 没到时间，不需要上报
+    FIREWALL_REPORT_SUCCESS = 1,  // 成功上报（且完成清理）
+    FIREWALL_REPORT_CONFLICT = 2  // 到了时间，但 CAS 没成功，没争夺到上报权
 };
 
 enum connect_status {
