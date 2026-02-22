@@ -89,13 +89,13 @@ export function mask_ipv6(value: string): string {
 
 /**
  * MAC 专门打码：遮蔽头尾，展示中间
- * AA:BB:CC:DD:EE:FF -> **:BB:CC:DD:EE:**
+ * AA:BB:CC:DD:EE:FF -> **:**:CC:DD:**:**
  */
 export function mask_mac(value: string): string {
   const separator = value.includes(":") ? ":" : "-";
   const parts = value.split(separator);
   if (parts.length !== 6) return value;
-  return `**${separator}${parts[1]}${separator}${parts[2]}${separator}${parts[3]}${separator}${parts[4]}${separator}**`;
+  return `**${separator}**${separator}${parts[2]}${separator}${parts[3]}${separator}**${separator}**`;
 }
 
 export function mask_string(value: string | undefined | null): string {
