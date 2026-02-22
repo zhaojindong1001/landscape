@@ -44,7 +44,7 @@ use crate::{
         route_wan::RouteWanServiceConfig,
     },
     dns::{config::DnsUpstreamConfig, redirect::DNSRedirectRule},
-    firewall::FirewallRuleConfig,
+    firewall::{blacklist::FirewallBlacklistConfig, FirewallRuleConfig},
     flow::config::FlowConfig,
     ip_mark::WanIpRuleConfig,
     LANDSCAPE_CONFIG_DIR_NAME, LANDSCAPE_DB_SQLITE_NAME, LANDSCAPE_LOG_DIR_NAME,
@@ -88,6 +88,8 @@ pub struct InitConfig {
     pub firewalls: Vec<FirewallServiceConfig>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub firewall_rules: Vec<FirewallRuleConfig>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub firewall_blacklists: Vec<FirewallBlacklistConfig>,
 
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub wifi_configs: Vec<WifiServiceConfig>,

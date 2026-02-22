@@ -43,6 +43,7 @@ impl LandscapeConfigService {
             icmpras: self.store.ra_service_store().list().await.unwrap(),
             firewalls: self.store.firewall_service_store().list().await.unwrap(),
             firewall_rules: self.store.firewall_rule_store().list().await.unwrap(),
+            firewall_blacklists: self.store.firewall_blacklist_store().list().await.unwrap(),
             wifi_configs: self.store.wifi_service_store().list().await.unwrap(),
             dhcpv4_services: self.store.dhcp_v4_server_store().list().await.unwrap(),
             mss_clamps: self.store.mss_clamp_service_store().list().await.unwrap(),

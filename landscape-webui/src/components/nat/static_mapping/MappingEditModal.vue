@@ -270,7 +270,6 @@ const mappingPortsRule = {
     :bordered="false"
   >
     <n-flex vertical>
-      <n-alert type="info"> 当前需要额外在防火墙开放静态映射端口 </n-alert>
       <!-- {{ isModified }} -->
       <n-form
         v-if="rule"

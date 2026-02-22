@@ -8,7 +8,7 @@ use landscape_common::{
 use landscape_database::{
     dst_ip_rule::repository::DstIpRuleRepository, provider::LandscapeDBServiceProvider,
 };
-use tokio::sync::mpsc;
+use tokio::sync::broadcast;
 use uuid::Uuid;
 
 use super::geo_ip_service::GeoIpService;
@@ -23,14 +23,14 @@ impl DstIpRuleService {
     pub async fn new(
         store: LandscapeDBServiceProvider,
         geo_ip_service: GeoIpService,
-        mut receiver: mpsc::Receiver<DstIpEvent>,
+        mut receiver: broadcast::Receiver<DstIpEvent>,
     ) -> Self {
         let store = store.dst_ip_rule_store();
         let dst_ip_rule_service = Self { store, geo_ip_service };
         dst_ip_rule_service.update_many_config(dst_ip_rule_service.list().await).await;
         let dst_ip_rule_service_clone = dst_ip_rule_service.clone();
         tokio::spawn(async move {
-            while let Some(event) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 match event {
                     DstIpEvent::GeoIpUpdated => {
                         tracing::info!("refresh dst ip rule");

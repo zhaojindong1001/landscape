@@ -22,7 +22,7 @@ use landscape_database::{
     geo_ip::repository::GeoIpSourceConfigRepository, provider::LandscapeDBServiceProvider,
 };
 use reqwest::Client;
-use tokio::sync::{mpsc, Mutex};
+use tokio::sync::{broadcast, Mutex};
 
 const A_DAY: u64 = 60 * 60 * 24;
 
@@ -32,13 +32,13 @@ pub type GeoDomainCacheStore = Arc<Mutex<StoreFileManager<GeoFileCacheKey, GeoIp
 pub struct GeoIpService {
     store: GeoIpSourceConfigRepository,
     file_cache: GeoDomainCacheStore,
-    dst_ip_events_tx: mpsc::Sender<DstIpEvent>,
+    dst_ip_events_tx: broadcast::Sender<DstIpEvent>,
 }
 
 impl GeoIpService {
     pub async fn new(
         store: LandscapeDBServiceProvider,
-        dst_ip_events_tx: mpsc::Sender<DstIpEvent>,
+        dst_ip_events_tx: broadcast::Sender<DstIpEvent>,
     ) -> Self {
         let store = store.geo_ip_rule_store();
 
@@ -61,6 +61,22 @@ impl GeoIpService {
             }
         });
         service
+    }
+
+    pub async fn resolve_geo_key_to_ips(
+        &self,
+        geo_key: &landscape_common::config::geo::GeoConfigKey,
+    ) -> Vec<landscape_common::ip_mark::IpConfig> {
+        let mut lock = self.file_cache.lock().await;
+        if let Some(geo_ip_config) = lock.get(&geo_key.get_file_cache_key()) {
+            geo_ip_config.values
+        } else {
+            vec![]
+        }
+    }
+
+    fn notify_dst_ip_updated(&self) {
+        let _ = self.dst_ip_events_tx.send(DstIpEvent::GeoIpUpdated);
     }
 
     pub async fn convert_config_to_runtime_rule(
@@ -156,7 +172,7 @@ impl GeoIpService {
                                     url,
                                     time.elapsed().as_secs()
                                 );
-                                let _ = self.dst_ip_events_tx.send(DstIpEvent::GeoIpUpdated).await;
+                                self.notify_dst_ip_updated();
                             }
                             Err(e) => tracing::error!("read {} response error: {}", url, e),
                         },
@@ -174,7 +190,7 @@ impl GeoIpService {
                 }
                 GeoIpSource::Direct { data } => {
                     self.write_direct_to_cache(&config.name, data).await;
-                    let _ = self.dst_ip_events_tx.send(DstIpEvent::GeoIpUpdated).await;
+                    self.notify_dst_ip_updated();
                 }
             }
         }
@@ -252,7 +268,7 @@ impl GeoIpService {
                 file_cache_lock.set(info);
             }
         }
-        let _ = self.dst_ip_events_tx.send(DstIpEvent::GeoIpUpdated).await;
+        self.notify_dst_ip_updated();
     }
 }
 
@@ -277,7 +293,7 @@ impl ConfigController for GeoIpService {
         for config in new_configs {
             if let GeoIpSource::Direct { ref data } = config.source {
                 self.write_direct_to_cache(&config.name, data).await;
-                let _ = self.dst_ip_events_tx.send(DstIpEvent::GeoIpUpdated).await;
+                self.notify_dst_ip_updated();
             }
         }
     }

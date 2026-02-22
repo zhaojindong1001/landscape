@@ -31,6 +31,7 @@ mod m20260122_125946_multiple_nat_ports;
 mod m20260124_140950_dns_bind_addr;
 mod m20260126_111753_enrolled_device;
 mod m20260222_154411_geo_source_type;
+mod m20260222_171753_firewall_blacklist;
 mod tables;
 
 pub struct Migrator;
@@ -70,6 +71,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260124_140950_dns_bind_addr::Migration),
             Box::new(m20260126_111753_enrolled_device::Migration),
             Box::new(m20260222_154411_geo_source_type::Migration),
+            Box::new(m20260222_171753_firewall_blacklist::Migration),
         ]
     }
 }

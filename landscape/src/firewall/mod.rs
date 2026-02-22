@@ -16,6 +16,7 @@ use tokio::sync::{broadcast, oneshot};
 
 use crate::iface::get_iface_by_name;
 
+pub mod blacklist;
 pub mod rules;
 
 #[derive(Clone, Default)]

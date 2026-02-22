@@ -1,4 +1,5 @@
 pub mod dst_ip_rule;
+pub mod firewall_blacklist;
 pub mod firewall_rule;
 pub mod flow_rule;
 

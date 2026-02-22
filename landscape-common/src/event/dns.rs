@@ -4,6 +4,7 @@ pub enum DnsEvent {
     FlowUpdated,
 }
 
+#[derive(Clone, Debug)]
 pub enum DstIpEvent {
     GeoIpUpdated,
 }

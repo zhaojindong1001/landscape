@@ -5,6 +5,7 @@ use std::{
 
 use landscape_common::{
     firewall::{FirewallRuleItem, FirewallRuleMark, LandscapeIpType},
+    ip_mark::IpConfig,
     net::MacAddr,
 };
 use libbpf_rs::{
@@ -283,4 +284,146 @@ fn conver_rule(rule: FirewallRuleItem) -> crate::map_setting::types::firewall_st
         local_port: rule_port.to_be(),
         remote_address,
     }
+}
+
+pub fn sync_firewall_blacklist(new_ips: Vec<IpConfig>, old_ips: Vec<IpConfig>) {
+    use std::collections::HashSet;
+
+    let new_set: HashSet<IpConfig> = new_ips.into_iter().collect();
+    let old_set: HashSet<IpConfig> = old_ips.into_iter().collect();
+
+    let to_add: Vec<&IpConfig> = new_set.difference(&old_set).collect();
+    let to_del: Vec<&IpConfig> = old_set.difference(&new_set).collect();
+
+    // Split into IPv4 and IPv6
+    let (add_v4, add_v6): (Vec<&IpConfig>, Vec<&IpConfig>) =
+        to_add.into_iter().partition(|ip| ip.ip.is_ipv4());
+    let (del_v4, del_v6): (Vec<&IpConfig>, Vec<&IpConfig>) =
+        to_del.into_iter().partition(|ip| ip.ip.is_ipv4());
+
+    // IPv4 block map
+    if !add_v4.is_empty() || !del_v4.is_empty() {
+        let map = libbpf_rs::MapHandle::from_pinned_path(&MAP_PATHS.firewall_ipv4_block).unwrap();
+        if !del_v4.is_empty() {
+            if let Err(e) = delete_blacklist_ipv4(&map, &del_v4) {
+                tracing::error!("del firewall blacklist ipv4: {e:?}");
+            }
+        }
+        if !add_v4.is_empty() {
+            if let Err(e) = add_blacklist_ipv4(&map, &add_v4) {
+                tracing::error!("add firewall blacklist ipv4: {e:?}");
+            }
+        }
+    }
+
+    // IPv6 block map
+    if !add_v6.is_empty() || !del_v6.is_empty() {
+        let map = libbpf_rs::MapHandle::from_pinned_path(&MAP_PATHS.firewall_ipv6_block).unwrap();
+        if !del_v6.is_empty() {
+            if let Err(e) = delete_blacklist_ipv6(&map, &del_v6) {
+                tracing::error!("del firewall blacklist ipv6: {e:?}");
+            }
+        }
+        if !add_v6.is_empty() {
+            if let Err(e) = add_blacklist_ipv6(&map, &add_v6) {
+                tracing::error!("add firewall blacklist ipv6: {e:?}");
+            }
+        }
+    }
+}
+
+fn add_blacklist_ipv4<T: MapCore>(map: &T, ips: &[&IpConfig]) -> libbpf_rs::Result<()> {
+    use crate::map_setting::types::{firewall_action, ipv4_lpm_key};
+
+    if ips.is_empty() {
+        return Ok(());
+    }
+
+    let mut keys = vec![];
+    let mut values = vec![];
+    let count = ips.len() as u32;
+
+    for ip in ips {
+        if let IpAddr::V4(addr) = ip.ip {
+            let key = ipv4_lpm_key { prefixlen: ip.prefix, addr: addr.to_bits().to_be() };
+            let value = firewall_action { mark: 0 };
+            keys.extend_from_slice(unsafe { plain::as_bytes(&key) });
+            values.extend_from_slice(unsafe { plain::as_bytes(&value) });
+        }
+    }
+
+    map.update_batch(&keys, &values, count, MapFlags::ANY, MapFlags::ANY)
+}
+
+fn delete_blacklist_ipv4<T: MapCore>(map: &T, ips: &[&IpConfig]) -> libbpf_rs::Result<()> {
+    use crate::map_setting::types::ipv4_lpm_key;
+
+    if ips.is_empty() {
+        return Ok(());
+    }
+
+    let mut keys = vec![];
+    let count = ips.len() as u32;
+
+    for ip in ips {
+        if let IpAddr::V4(addr) = ip.ip {
+            let key = ipv4_lpm_key { prefixlen: ip.prefix, addr: addr.to_bits().to_be() };
+            keys.extend_from_slice(unsafe { plain::as_bytes(&key) });
+        }
+    }
+
+    map.delete_batch(&keys, count, MapFlags::ANY, MapFlags::ANY)
+}
+
+fn add_blacklist_ipv6<T: MapCore>(map: &T, ips: &[&IpConfig]) -> libbpf_rs::Result<()> {
+    use crate::map_setting::types::{__anon_in6_addr_1, firewall_action, in6_addr, ipv6_lpm_key};
+
+    if ips.is_empty() {
+        return Ok(());
+    }
+
+    let mut keys = vec![];
+    let mut values = vec![];
+    let count = ips.len() as u32;
+
+    for ip in ips {
+        if let IpAddr::V6(addr) = ip.ip {
+            let key = ipv6_lpm_key {
+                prefixlen: ip.prefix,
+                addr: in6_addr {
+                    in6_u: __anon_in6_addr_1 { u6_addr8: addr.octets() },
+                },
+            };
+            let value = firewall_action { mark: 0 };
+            keys.extend_from_slice(unsafe { plain::as_bytes(&key) });
+            values.extend_from_slice(unsafe { plain::as_bytes(&value) });
+        }
+    }
+
+    map.update_batch(&keys, &values, count, MapFlags::ANY, MapFlags::ANY)
+}
+
+fn delete_blacklist_ipv6<T: MapCore>(map: &T, ips: &[&IpConfig]) -> libbpf_rs::Result<()> {
+    use crate::map_setting::types::{__anon_in6_addr_1, in6_addr, ipv6_lpm_key};
+
+    if ips.is_empty() {
+        return Ok(());
+    }
+
+    let mut keys = vec![];
+    let count = ips.len() as u32;
+
+    for ip in ips {
+        if let IpAddr::V6(addr) = ip.ip {
+            let key = ipv6_lpm_key {
+                prefixlen: ip.prefix,
+                addr: in6_addr {
+                    in6_u: __anon_in6_addr_1 { u6_addr8: addr.octets() },
+                },
+            };
+            keys.extend_from_slice(unsafe { plain::as_bytes(&key) });
+        }
+    }
+
+    map.delete_batch(&keys, count, MapFlags::ANY, MapFlags::ANY)
 }

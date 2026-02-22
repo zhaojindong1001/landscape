@@ -20,3 +20,4 @@ pub mod geo;
 pub mod route;
 
 pub mod enrolled_device;
+pub mod firewall_blacklist;

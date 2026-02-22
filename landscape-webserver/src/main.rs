@@ -8,6 +8,7 @@ use axum_server::tls_rustls::RustlsConfig;
 use colored::Colorize;
 use config_service::{
     dns_rule::get_dns_rule_config_paths, dst_ip_rule::get_dst_ip_rule_config_paths,
+    firewall_blacklist::get_firewall_blacklist_config_paths,
     firewall_rule::get_firewall_rule_config_paths, flow_rule::get_flow_rule_config_paths,
     geo_ip::get_geo_ip_config_paths, geo_site::get_geo_site_config_paths,
 };
@@ -19,6 +20,7 @@ use landscape::{
         dns::{redirect::DNSRedirectService, upstream::DnsUpstreamService},
         dns_rule::DNSRuleService,
         dst_ip_rule::DstIpRuleService,
+        firewall_blacklist::FirewallBlacklistService,
         firewall_rule::FirewallRuleService,
         flow_rule::FlowRuleService,
         geo_ip_service::GeoIpService,
@@ -110,6 +112,7 @@ pub struct LandscapeApp {
     pub flow_rule_service: FlowRuleService,
     pub geo_site_service: GeoSiteService,
     pub fire_wall_rule_service: FirewallRuleService,
+    pub firewall_blacklist_service: FirewallBlacklistService,
     pub dst_ip_rule_service: DstIpRuleService,
     pub geo_ip_service: GeoIpService,
     pub config_service: LandscapeConfigService,
@@ -186,7 +189,7 @@ async fn run(home_path: PathBuf, config: RuntimeConfig) -> LdResult<()> {
 
     let (dns_service_tx, dns_service_rx) = mpsc::channel(DNS_EVENT_CHANNEL_SIZE);
     let (route_service_tx, route_service_rx) = mpsc::channel(ROUTE_EVENT_CHANNEL_SIZE);
-    let (dst_ip_service_tx, dst_ip_service_rx) = mpsc::channel(DST_IP_EVENT_CHANNEL_SIZE);
+    let (dst_ip_service_tx, _) = tokio::sync::broadcast::channel(DST_IP_EVENT_CHANNEL_SIZE);
 
     let geo_site_service =
         GeoSiteService::new(db_store_provider.clone(), dns_service_tx.clone()).await;
@@ -227,9 +230,18 @@ async fn run(home_path: PathBuf, config: RuntimeConfig) -> LdResult<()> {
 
     let geo_ip_service =
         GeoIpService::new(db_store_provider.clone(), dst_ip_service_tx.clone()).await;
-    let dst_ip_rule_service =
-        DstIpRuleService::new(db_store_provider.clone(), geo_ip_service.clone(), dst_ip_service_rx)
-            .await;
+    let dst_ip_rule_service = DstIpRuleService::new(
+        db_store_provider.clone(),
+        geo_ip_service.clone(),
+        dst_ip_service_tx.subscribe(),
+    )
+    .await;
+    let firewall_blacklist_service = FirewallBlacklistService::new(
+        db_store_provider.clone(),
+        geo_ip_service.clone(),
+        dst_ip_service_tx.subscribe(),
+    )
+    .await;
 
     let config_service =
         LandscapeConfigService::new(config.clone(), db_store_provider.clone()).await;
@@ -310,6 +322,7 @@ async fn run(home_path: PathBuf, config: RuntimeConfig) -> LdResult<()> {
         flow_rule_service,
         geo_site_service,
         fire_wall_rule_service,
+        firewall_blacklist_service,
         dst_ip_rule_service,
         geo_ip_service,
         config_service,
@@ -370,6 +383,7 @@ async fn run(home_path: PathBuf, config: RuntimeConfig) -> LdResult<()> {
             Router::new()
                 .merge(get_dns_rule_config_paths().await)
                 .merge(get_firewall_rule_config_paths().await)
+                .merge(get_firewall_blacklist_config_paths().await)
                 .merge(get_flow_rule_config_paths().await)
                 .merge(get_geo_site_config_paths().await)
                 .merge(get_geo_ip_config_paths().await)
