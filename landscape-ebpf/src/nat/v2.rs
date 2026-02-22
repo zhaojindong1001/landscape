@@ -31,11 +31,11 @@ pub fn init_nat(
     landscape_open.maps.wan_ip_binding.set_pin_path(&MAP_PATHS.wan_ip).unwrap();
     landscape_open.maps.wan_ip_binding.reuse_pinned_map(&MAP_PATHS.wan_ip).unwrap();
 
-    landscape_open.maps.static_nat_mappings.set_pin_path(&MAP_PATHS.static_nat_mappings).unwrap();
+    landscape_open.maps.nat6_static_mappings.set_pin_path(&MAP_PATHS.nat6_static_mappings).unwrap();
     landscape_open
         .maps
-        .static_nat_mappings
-        .reuse_pinned_map(&MAP_PATHS.static_nat_mappings)
+        .nat6_static_mappings
+        .reuse_pinned_map(&MAP_PATHS.nat6_static_mappings)
         .unwrap();
 
     landscape_open.maps.nat4_mappings.set_pin_path(&MAP_PATHS.nat4_mappings).unwrap();

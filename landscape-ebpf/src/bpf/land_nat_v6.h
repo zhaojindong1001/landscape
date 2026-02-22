@@ -10,32 +10,6 @@
 
 #define LAND_IPV6_NET_PREFIX_TRANS_MASK (0x0FULL << 56)
 
-// struct ipv6_prefix_mapping_key {
-//     u8 client_suffix[8];
-//     u16 client_port;
-//     // client suffix is 8 byte + 4 bit
-//     u8 id_byte;
-//     // TCP / UDP / ICMP6
-//     u8 l4_protocol;
-// };
-
-// struct ipv6_prefix_mapping_value {
-//     // client prefix is 7 byte + 4 bit
-//     u8 client_prefix[8];
-//     union u_inet_addr trigger_addr;
-//     u16 trigger_port;
-//     u8 is_allow_reuse;
-//     u8 _pad;
-// };
-
-// #define CLIENT_PREFIX_CACHE_SIZE 65536 * 3
-// struct {
-//     __uint(type, BPF_MAP_TYPE_LRU_HASH);
-//     __type(key, struct ipv6_prefix_mapping_key);
-//     __type(value, struct ipv6_prefix_mapping_value);
-//     __uint(max_entries, CLIENT_PREFIX_CACHE_SIZE);
-// } ip6_client_map SEC(".maps");
-
 struct {
     __uint(type, BPF_MAP_TYPE_HASH);
     __type(key, struct nat_timer_key_v6);
@@ -426,8 +400,8 @@ static __always_inline int search_ipv6_hash_mapping_egress(struct __sk_buff *skb
 static __always_inline int check_egress_static_mapping_exist(struct __sk_buff *skb, u8 ip_protocol,
                                                              const struct inet_pair *pkt_ip_pair) {
 #define BPF_LOG_TOPIC "check_egress_static_mapping_exist"
-    struct static_nat_mapping_key egress_key = {0};
-    struct nat_mapping_value *nat_gress_value = NULL;
+    struct static_nat_mapping_key_v6 egress_key = {0};
+    struct static_nat_mapping_value_v6 *nat_gress_value = NULL;
 
     egress_key.l3_protocol = LANDSCAPE_IPV6_TYPE;
     egress_key.l4_protocol = ip_protocol;
@@ -436,7 +410,7 @@ static __always_inline int check_egress_static_mapping_exist(struct __sk_buff *s
     egress_key.port = pkt_ip_pair->src_port;
     COPY_ADDR_FROM(egress_key.addr.all, pkt_ip_pair->src_addr.all);
 
-    nat_gress_value = bpf_map_lookup_elem(&static_nat_mappings, &egress_key);
+    nat_gress_value = bpf_map_lookup_elem(&nat6_static_mappings, &egress_key);
     if (nat_gress_value) {
         return TC_ACT_OK;
     }
@@ -450,13 +424,12 @@ ipv6_egress_prefix_check_and_replace(struct __sk_buff *skb, struct packet_offset
                                      struct inet_pair *ip_pair) {
 #define BPF_LOG_TOPIC "ipv6_egress_prefix_check_and_replace"
     int ret;
-    ret = check_egress_static_mapping_exist(skb, offset_info->l4_protocol, ip_pair);
-    if (ret != TC_ACT_OK) {
-        // Static mapping does not exist
-        ret = search_ipv6_hash_mapping_egress(skb, offset_info, ip_pair);
-        if (ret != TC_ACT_OK) {
-            return TC_ACT_SHOT;
-        }
+    bool is_static =
+        (check_egress_static_mapping_exist(skb, offset_info->l4_protocol, ip_pair) == TC_ACT_OK);
+
+    int ct_ret = search_ipv6_hash_mapping_egress(skb, offset_info, ip_pair);
+    if (ct_ret != TC_ACT_OK && !is_static) {
+        return TC_ACT_SHOT;
     }
 
     struct wan_ip_info_key wan_search_key = {0};
@@ -568,8 +541,8 @@ static __always_inline int check_ingress_mapping_exist(struct __sk_buff *skb, u8
                                                        const struct inet_pair *pkt_ip_pair,
                                                        __be64 *local_client_prefix) {
 #define BPF_LOG_TOPIC "check_ingress_mapping_exist"
-    struct static_nat_mapping_key ingress_key = {0};
-    struct nat_mapping_value *value = NULL;
+    struct static_nat_mapping_key_v6 ingress_key = {0};
+    struct static_nat_mapping_value_v6 *value = NULL;
 
     __be64 dst_suffix, mapping_suffix;
 
@@ -579,7 +552,7 @@ static __always_inline int check_ingress_mapping_exist(struct __sk_buff *skb, u8
     ingress_key.prefixlen = 96;
     ingress_key.port = pkt_ip_pair->dst_port;
 
-    value = bpf_map_lookup_elem(&static_nat_mappings, &ingress_key);
+    value = bpf_map_lookup_elem(&nat6_static_mappings, &ingress_key);
     if (value) {
         // 映射到当前的主机, 相对于 suffix 是空的
         if (value->addr.all[3] == 0 && value->addr.all[2] == 0) {
@@ -588,12 +561,12 @@ static __always_inline int check_ingress_mapping_exist(struct __sk_buff *skb, u8
 
         // 映射中设置了前缀, 那么要进行修改
         if (value->addr.ip != 0) {
-            COPY_ADDR_FROM(local_client_prefix, value->addr.bits);
+            COPY_ADDR_FROM(local_client_prefix, value->addr.bytes);
             return TC_ACT_OK;
         }
 
         // 映射中只设置了后缀, 所以就只校验, 不修改
-        COPY_ADDR_FROM(&mapping_suffix, value->addr.bits + 8);
+        COPY_ADDR_FROM(&mapping_suffix, value->addr.bytes + 8);
         COPY_ADDR_FROM(&dst_suffix, pkt_ip_pair->dst_addr.bits + 8);
 
         if (mapping_suffix == dst_suffix) {
@@ -605,6 +578,44 @@ static __always_inline int check_ingress_mapping_exist(struct __sk_buff *skb, u8
 #undef BPF_LOG_TOPIC
 }
 
+static __always_inline struct nat_timer_value_v6 *
+lookup_or_new_ct6_ingress(struct __sk_buff *skb, struct packet_offset_info *offset_info,
+                          const struct inet_pair *ip_pair, bool is_static,
+                          const __be64 *client_prefix_hint) {
+#define BPF_LOG_TOPIC "lookup_or_new_ct6_ingress"
+    struct nat_timer_key_v6 key = {0};
+    key.client_port = ip_pair->dst_port;
+    COPY_ADDR_FROM(key.client_suffix, ip_pair->dst_addr.bits + 8);
+    key.id_byte = ip_pair->dst_addr.bits[7] & 0x0F;
+    key.l4_protocol = offset_info->l4_protocol;
+
+    struct nat_timer_value_v6 *value = bpf_map_lookup_elem(&nat6_conn_timer, &key);
+    if (value) {
+        return value;
+    }
+
+    if (!is_static) {
+        return NULL;
+    }
+
+    if (!pkt_allow_initiating_ct(offset_info->pkt_type)) {
+        return NULL;
+    }
+
+    struct nat_timer_value_v6 new_value = {};
+    __builtin_memset(&new_value, 0, sizeof(new_value));
+    new_value.create_time = bpf_ktime_get_ns();
+    new_value.flow_id = get_flow_id(skb->mark);
+    new_value.cpu_id = bpf_get_smp_processor_id();
+    COPY_ADDR_FROM(new_value.trigger_addr.bytes, ip_pair->src_addr.all);
+    new_value.trigger_port = ip_pair->src_port;
+    COPY_ADDR_FROM(new_value.client_prefix, client_prefix_hint);
+    new_value.is_allow_reuse = 1;
+
+    return insert_ct6_timer(&key, &new_value);
+#undef BPF_LOG_TOPIC
+}
+
 static __always_inline int
 ipv6_ingress_prefix_check_and_replace(struct __sk_buff *skb, struct packet_offset_info *offset_info,
                                       struct inet_pair *ip_pair) {
@@ -613,6 +624,50 @@ ipv6_ingress_prefix_check_and_replace(struct __sk_buff *skb, struct packet_offse
     __be64 local_client_prefix = {0};
 
     ret = check_ingress_mapping_exist(skb, offset_info->l4_protocol, ip_pair, &local_client_prefix);
+    bool is_static = (ret != TC_ACT_SHOT);
+    bool need_prefix_replace = (ret == TC_ACT_OK);
+
+    // Determine client_prefix_hint for static CT creation
+    __be64 client_prefix_hint = 0;
+    if (ret == TC_ACT_OK) {
+        client_prefix_hint = local_client_prefix;
+    } else if (ret == TC_ACT_UNSPEC) {
+        COPY_ADDR_FROM(&client_prefix_hint, ip_pair->dst_addr.bits);
+    }
+
+    // CT lookup/create (all cases)
+    struct nat_timer_value_v6 *ct_value =
+        lookup_or_new_ct6_ingress(skb, offset_info, ip_pair, is_static, &client_prefix_hint);
+
+    if (ct_value) {
+        if (!is_static) {
+            // dynamic: get client_prefix from CT, check port reuse
+            COPY_ADDR_FROM(&local_client_prefix, ct_value->client_prefix);
+
+            if (ct_value->is_allow_reuse == 0 && offset_info->l4_protocol != IPPROTO_ICMPV6) {
+                if (!ip_addr_equal(&ip_pair->src_addr, &ct_value->trigger_addr) ||
+                    ip_pair->src_port != ct_value->trigger_port) {
+                    bpf_printk("FLOW_ALLOW_REUSE MARK not set, DROP PACKET");
+                    bpf_printk("src info: [%pI6]:%u", &ip_pair->src_addr,
+                               bpf_ntohs(ip_pair->src_port));
+                    bpf_printk("trigger ip: [%pI6]:%u,", &ct_value->trigger_addr,
+                               bpf_ntohs(ct_value->trigger_port));
+                    return TC_ACT_SHOT;
+                }
+            }
+            need_prefix_replace = true;
+        }
+
+        ct6_state_transition(offset_info->pkt_type, NAT_MAPPING_INGRESS, ct_value);
+        nat6_metric_accumulate(skb, true, ct_value);
+    } else {
+        if (!is_static) {
+            bpf_printk("ingress dynamic no CT, l4_proto: %u, dst_port: %04x",
+                       offset_info->l4_protocol, ip_pair->dst_port);
+            return TC_ACT_SHOT;
+        }
+    }
+
     if (ret == TC_ACT_UNSPEC) {
         u32 mark = skb->mark;
         barrier_var(mark);
@@ -620,45 +675,8 @@ ipv6_ingress_prefix_check_and_replace(struct __sk_buff *skb, struct packet_offse
         return TC_ACT_UNSPEC;
     }
 
-    if (ret == TC_ACT_SHOT) {
-        struct nat_timer_key_v6 key = {0};
-        key.client_port = ip_pair->dst_port;
-        COPY_ADDR_FROM(key.client_suffix, ip_pair->dst_addr.bits + 8);
-        // bpf_printk("client_suffix: %02x %02x", key.client_suffix[0], key.client_suffix[1]);
-        key.id_byte = ip_pair->dst_addr.bits[7] & 0x0F;
-        // bpf_printk("client_suffix: %02x %02x", key.client_suffix[0], key.client_suffix[1]);
-        key.l4_protocol = offset_info->l4_protocol;
-
-        struct nat_timer_value_v6 *value = bpf_map_lookup_elem(&nat6_conn_timer, &key);
-        if (value == NULL) {
-            bpf_printk("lookup client prefix error, key.id_byte: %x", key.id_byte);
-            // bpf_printk("lookup client prefix error, key.client_suffix: %02x %02x %02x %02x %02x
-            // %02x %02x %02x %02x", key.client_suffix[0], key.client_suffix[1],
-            // key.client_suffix[2], key.client_suffix[3], key.client_suffix[4],
-            // key.client_suffix[5], key.client_suffix[6], key.client_suffix[7],
-            // key.client_suffix[8]);
-            bpf_printk("lookup client prefix error, key.l4_protocol: %u", key.l4_protocol);
-            bpf_printk("lookup client prefix error, key.client_port: %04x", key.client_port);
-            return TC_ACT_SHOT;
-        }
-
-        COPY_ADDR_FROM(&local_client_prefix, value->client_prefix);
-
-        // bpf_printk("is_allow_reuse: %u", value->is_allow_reuse);
-
-        if (value->is_allow_reuse == 0 && offset_info->l4_protocol != IPPROTO_ICMPV6) {
-            if (!ip_addr_equal(&ip_pair->src_addr, &value->trigger_addr) ||
-                ip_pair->src_port != value->trigger_port) {
-                bpf_printk("FLOW_ALLOW_REUSE MARK not set, DROP PACKET");
-                bpf_printk("src info: [%pI6]:%u", &ip_pair->src_addr, bpf_ntohs(ip_pair->src_port));
-                bpf_printk("trigger ip: [%pI6]:%u,", &value->trigger_addr,
-                           bpf_ntohs(value->trigger_port));
-                return TC_ACT_SHOT;
-            }
-        }
-
-        ct6_state_transition(offset_info->pkt_type, NAT_MAPPING_INGRESS, value);
-        nat6_metric_accumulate(skb, true, value);
+    if (!need_prefix_replace) {
+        return TC_ACT_UNSPEC;
     }
 
     if (is_icmp_error_pkt(offset_info)) {

@@ -5,7 +5,7 @@ use libbpf_rs::{MapCore, MapFlags};
 
 use crate::{
     map_setting::share_map::types::{
-        nat_mapping_value, nat_mapping_value_v4, static_nat_mapping_key,
+        nat_mapping_value_v4, static_nat_mapping_key_v6, static_nat_mapping_value_v6,
     },
     LANDSCAPE_IPV6_TYPE, MAP_PATHS, NAT_MAPPING_EGRESS, NAT_MAPPING_INGRESS,
 };
@@ -113,7 +113,7 @@ where
     let counts = (mapping_iter.len() * 2) as u32;
 
     for static_mapping in mapping_iter {
-        let mut ingress_mapping_key = static_nat_mapping_key {
+        let mut ingress_mapping_key = static_nat_mapping_key_v6 {
             prefixlen: 64, // current only match port
             port: static_mapping.wan_port.to_be(),
             gress: NAT_MAPPING_INGRESS,
@@ -121,7 +121,7 @@ where
             ..Default::default()
         };
 
-        let mut egress_mapping_key = static_nat_mapping_key {
+        let mut egress_mapping_key = static_nat_mapping_key_v6 {
             prefixlen: 192,
             port: static_mapping.lan_port.to_be(),
             gress: NAT_MAPPING_EGRESS,
@@ -129,8 +129,8 @@ where
             ..Default::default()
         };
 
-        let mut ingress_mapping_value = nat_mapping_value::default();
-        let mut egress_mapping_value = nat_mapping_value::default();
+        let mut ingress_mapping_value = static_nat_mapping_value_v6::default();
+        let mut egress_mapping_value = static_nat_mapping_value_v6::default();
 
         ingress_mapping_value.port = static_mapping.lan_port.to_be();
         egress_mapping_value.port = static_mapping.wan_port.to_be();
@@ -140,8 +140,8 @@ where
         let ipv6_addr = static_mapping.lan_ip;
         ingress_mapping_key.l3_protocol = LANDSCAPE_IPV6_TYPE;
         egress_mapping_key.l3_protocol = LANDSCAPE_IPV6_TYPE;
-        egress_mapping_key.addr.bits = ipv6_addr.to_bits().to_be_bytes();
-        ingress_mapping_value.addr.bits = ipv6_addr.to_bits().to_be_bytes();
+        egress_mapping_key.addr.bytes = ipv6_addr.to_bits().to_be_bytes();
+        ingress_mapping_value.addr.bytes = ipv6_addr.to_bits().to_be_bytes();
 
         keys.extend_from_slice(unsafe { plain::as_bytes(&ingress_mapping_key) });
         values.extend_from_slice(unsafe { plain::as_bytes(&ingress_mapping_value) });
@@ -193,7 +193,7 @@ where
     let nat4_mappings = libbpf_rs::MapHandle::from_pinned_path(&MAP_PATHS.nat4_mappings).unwrap();
     add_static_nat4_mapping(&nat4_mappings, v4_rules);
     let static_nat_mappings =
-        libbpf_rs::MapHandle::from_pinned_path(&MAP_PATHS.static_nat_mappings).unwrap();
+        libbpf_rs::MapHandle::from_pinned_path(&MAP_PATHS.nat6_static_mappings).unwrap();
     add_static_nat6_mapping(&static_nat_mappings, v6_rules);
 }
 
@@ -228,7 +228,7 @@ where
     let nat4_mappings = libbpf_rs::MapHandle::from_pinned_path(&MAP_PATHS.nat4_mappings).unwrap();
     del_static_nat4_mapping(&nat4_mappings, v4_rules);
     let static_nat_mappings =
-        libbpf_rs::MapHandle::from_pinned_path(&MAP_PATHS.static_nat_mappings).unwrap();
+        libbpf_rs::MapHandle::from_pinned_path(&MAP_PATHS.nat6_static_mappings).unwrap();
     del_static_nat6_mapping(&static_nat_mappings, v6_rules);
 }
 
@@ -292,7 +292,7 @@ where
     let counts = (mapping_iter.len() * 2) as u32;
 
     for static_mapping in mapping_iter {
-        let mut ingress_mapping_key = static_nat_mapping_key {
+        let mut ingress_mapping_key = static_nat_mapping_key_v6 {
             prefixlen: 64, // current only match port
             port: static_mapping.wan_port.to_be(),
             gress: NAT_MAPPING_INGRESS,
@@ -300,7 +300,7 @@ where
             ..Default::default()
         };
 
-        let mut egress_mapping_key = static_nat_mapping_key {
+        let mut egress_mapping_key = static_nat_mapping_key_v6 {
             prefixlen: 192,
             port: static_mapping.lan_port.to_be(),
             gress: NAT_MAPPING_EGRESS,
@@ -311,7 +311,7 @@ where
         let ipv6_addr = static_mapping.lan_ip;
         ingress_mapping_key.l3_protocol = LANDSCAPE_IPV6_TYPE;
         egress_mapping_key.l3_protocol = LANDSCAPE_IPV6_TYPE;
-        egress_mapping_key.addr.bits = ipv6_addr.to_bits().to_be_bytes();
+        egress_mapping_key.addr.bytes = ipv6_addr.to_bits().to_be_bytes();
 
         keys.extend_from_slice(unsafe { plain::as_bytes(&ingress_mapping_key) });
 

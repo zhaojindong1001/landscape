@@ -32,7 +32,7 @@ static MAP_PATHS: Lazy<LandscapeMapPath> = Lazy::new(|| {
     }
     let paths = LandscapeMapPath {
         wan_ip: PathBuf::from(format!("{}/wan_ip_binding", ebpf_map_path)),
-        static_nat_mappings: PathBuf::from(format!("{}/nat_static_mapping", ebpf_map_path)),
+        nat6_static_mappings: PathBuf::from(format!("{}/nat_static_mapping", ebpf_map_path)),
 
         nat4_mappings: PathBuf::from(format!("{}/nat4_mappings", ebpf_map_path)),
         nat4_mapping_timer: PathBuf::from(format!("{}/nat4_mapping_timer", ebpf_map_path)),
@@ -85,7 +85,7 @@ static MAP_PATHS: Lazy<LandscapeMapPath> = Lazy::new(|| {
 pub(crate) struct LandscapeMapPath {
     pub wan_ip: PathBuf,
     // NAT
-    pub static_nat_mappings: PathBuf,
+    pub nat6_static_mappings: PathBuf,
     pub nat4_mappings: PathBuf,
     pub nat4_mapping_timer: PathBuf,
 

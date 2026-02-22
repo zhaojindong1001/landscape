@@ -41,7 +41,7 @@ pub(crate) fn init_path(paths: &LandscapeMapPath) {
 
     landscape_open.maps.wan_ip_binding.set_pin_path(&paths.wan_ip).unwrap();
     // NAT
-    landscape_open.maps.static_nat_mappings.set_pin_path(&paths.static_nat_mappings).unwrap();
+    landscape_open.maps.nat6_static_mappings.set_pin_path(&paths.nat6_static_mappings).unwrap();
     landscape_open.maps.nat4_mappings.set_pin_path(&paths.nat4_mappings).unwrap();
     landscape_open.maps.nat4_mapping_timer.set_pin_path(&paths.nat4_mapping_timer).unwrap();
 

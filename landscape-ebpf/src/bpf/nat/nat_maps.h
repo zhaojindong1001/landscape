@@ -10,32 +10,28 @@
 #define NAT_MAPPING_CACHE_SIZE 1024 * 64 * 2
 #define NAT_MAPPING_TIMER_SIZE 1024 * 64 * 2
 
-struct static_nat_mapping_key {
+struct static_nat_mapping_key_v6 {
     u32 prefixlen;
     // INGRESS: NAT Mapping Port
     // EGRESS: lan Clinet Port
     u16 port;
     u8 gress;
-    // IPv4 / IPv6
     u8 l3_protocol;
     u8 l4_protocol;
     u8 _pad[3];
     // INGRESS:  only use u32 for ifindex match
     // EGRESS: match lan client ip
-    union u_inet_addr addr;
+    union inet6_addr addr;
 };
 
-struct nat_mapping_value {
-    union u_inet_addr addr;
-    // TODO： 触发这个关系的 ip 或者端口
-    // 单独一张检查表， 使用这个 ip 获取是否需要检查
-    union u_inet_addr trigger_addr;
+struct static_nat_mapping_value_v6 {
+    union inet6_addr addr;
+    union inet6_addr trigger_addr;
     __be16 port;
     __be16 trigger_port;
     u8 is_static;
     u8 is_allow_reuse;
     u8 _pad[2];
-    // 增加一个最后活跃时间
     u64 active_time;
 };
 
@@ -54,12 +50,12 @@ struct nat_mapping_value_v4 {
 
 struct {
     __uint(type, BPF_MAP_TYPE_LPM_TRIE);
-    __type(key, struct static_nat_mapping_key);
-    __type(value, struct nat_mapping_value);
+    __type(key, struct static_nat_mapping_key_v6);
+    __type(value, struct static_nat_mapping_value_v6);
     __uint(max_entries, STATIC_NAT_MAPPING_CACHE_SIZE);
     __uint(map_flags, BPF_F_NO_PREALLOC);
     __uint(pinning, LIBBPF_PIN_BY_NAME);
-} static_nat_mappings SEC(".maps");
+} nat6_static_mappings SEC(".maps");
 
 struct {
     __uint(type, BPF_MAP_TYPE_HASH);
