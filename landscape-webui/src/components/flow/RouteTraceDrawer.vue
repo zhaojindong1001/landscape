@@ -5,6 +5,7 @@ import { trace_flow_match, trace_verdict } from "@/api/route/trace";
 import { check_domain } from "@/api/dns_service";
 import { reset_cache } from "@/api/route/cache";
 import { useEnrolledDeviceStore } from "@/stores/enrolled_device";
+import { useFrontEndStore } from "@/stores/front_end_config";
 import FlowExhibit from "@/components/flow/FlowExhibit.vue";
 import type { FlowMatchResult } from "landscape-types/common/route_trace";
 import type { FlowVerdictResult } from "landscape-types/common/route_trace";
@@ -12,6 +13,7 @@ import type { FlowVerdictResult } from "landscape-types/common/route_trace";
 const show = defineModel<boolean>("show", { required: true });
 
 const enrolledDeviceStore = useEnrolledDeviceStore();
+const frontEndStore = useFrontEndStore();
 
 // Step 1 state
 const selectMode = ref(true);
@@ -74,18 +76,31 @@ async function doFlowMatch() {
   }
 }
 
+function extractDomain(input: string): string {
+  let s = input.trim();
+  try {
+    const url = new URL(s);
+    return url.hostname;
+  } catch {
+    // Not a valid URL, strip trailing slashes/path
+    return s.replace(/\/.*$/, "");
+  }
+}
+
 async function doVerdictByDomain() {
   if (!domainInput.value || !matchResult.value) return;
+  const domain = extractDomain(domainInput.value);
+  if (!domain) return;
   verdictLoading.value = true;
   verdictResult.value = null;
-  resolvedDomain.value = domainInput.value;
+  resolvedDomain.value = domain;
   try {
     const ips: string[] = [];
 
     // Query A records
     const dnsResultA = await check_domain({
       flow_id: matchResult.value.effective_flow_id,
-      domain: domainInput.value,
+      domain,
       record_type: "A" as any,
     });
     if (dnsResultA.records) {
@@ -101,7 +116,7 @@ async function doVerdictByDomain() {
       try {
         const dnsResultAAAA = await check_domain({
           flow_id: matchResult.value.effective_flow_id,
-          domain: domainInput.value,
+          domain,
           record_type: "AAAA" as any,
         });
         if (dnsResultAAAA.records) {
@@ -246,8 +261,11 @@ function actionTagType(
               depth="3"
               style="font-size: 12px"
             >
-              IPv4: {{ srcIpv4 || "无" }} &nbsp; IPv6:
-              {{ srcIpv6 || "无" }} &nbsp; MAC: {{ srcMac || "无" }}
+              IPv4: {{ srcIpv4 ? frontEndStore.MASK_INFO(srcIpv4) : "无" }}
+              &nbsp; IPv6:
+              {{ srcIpv6 ? frontEndStore.MASK_INFO(srcIpv6) : "无" }}
+              &nbsp; MAC:
+              {{ srcMac ? frontEndStore.MASK_INFO(srcMac) : "无" }}
             </n-text>
             <n-button
               type="primary"
@@ -285,7 +303,13 @@ function actionTagType(
               <n-tag v-else type="default" size="small">无匹配</n-tag>
             </n-descriptions-item>
             <n-descriptions-item label="生效 Flow">
-              <FlowExhibit :flow_id="matchResult.effective_flow_id" />
+              <n-tag
+                v-if="matchResult.effective_flow_id === 0"
+                type="info"
+                size="small"
+                >默认 Flow</n-tag
+              >
+              <FlowExhibit v-else :flow_id="matchResult.effective_flow_id" />
             </n-descriptions-item>
           </n-descriptions>
         </n-card>
@@ -401,6 +425,14 @@ function actionTagType(
               </n-descriptions-item>
               <n-descriptions-item label="最终动作">
                 <n-tag
+                  v-if="!v.ip_rule_match && !v.dns_rule_match"
+                  type="default"
+                  size="small"
+                >
+                  请进行一次访问后再进行追踪
+                </n-tag>
+                <n-tag
+                  v-else
                   :type="actionTagType(v.effective_mark as any)"
                   size="small"
                 >

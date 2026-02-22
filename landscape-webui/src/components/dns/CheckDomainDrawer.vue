@@ -63,10 +63,21 @@ const options = [
   },
 ];
 
+function extractDomain(input: string): string {
+  let s = input.trim();
+  try {
+    const url = new URL(s);
+    return url.hostname;
+  } catch {
+    return s.replace(/\/.*$/, "");
+  }
+}
+
 const loading = ref(false);
 const config_rule = ref<DnsRule>();
 const redirect_rule = ref<DNSRedirectRule>();
 async function query() {
+  req.value.domain = extractDomain(req.value.domain);
   if (req.value.domain !== "") {
     loading.value = true;
     try {
