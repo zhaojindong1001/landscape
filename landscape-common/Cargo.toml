@@ -30,6 +30,7 @@ ts-rs = { workspace = true }
 uuid = { workspace = true }
 
 libc = { workspace = true }
+idna = { workspace = true }
 
 paste = { workspace = true }
 

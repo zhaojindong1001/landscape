@@ -3344,6 +3344,7 @@ dependencies = [
  "dotenvy",
  "homedir",
  "hostname 0.4.2",
+ "idna",
  "landscape-macro",
  "libc",
  "once_cell",

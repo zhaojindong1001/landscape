@@ -79,11 +79,15 @@ async function doFlowMatch() {
 function extractDomain(input: string): string {
   let s = input.trim();
   try {
-    const url = new URL(s);
-    return url.hostname;
+    return new URL(s).hostname;
   } catch {
-    // Not a valid URL, strip trailing slashes/path
-    return s.replace(/\/.*$/, "");
+    s = s.replace(/\/.*$/, "");
+  }
+  // Convert IDN (e.g. Chinese domains) to Punycode
+  try {
+    return new URL("http://" + s).hostname;
+  } catch {
+    return s;
   }
 }
 
@@ -93,7 +97,7 @@ async function doVerdictByDomain() {
   if (!domain) return;
   verdictLoading.value = true;
   verdictResult.value = null;
-  resolvedDomain.value = domain;
+  resolvedDomain.value = domainInput.value.trim();
   try {
     const ips: string[] = [];
 
@@ -326,6 +330,7 @@ function actionTagType(
               <!-- Domain mode -->
               <template v-if="queryMode === 'domain'">
                 <n-input
+                  key="domain"
                   v-model:value="domainInput"
                   placeholder="输入域名，如 www.baidu.com"
                 />
@@ -344,6 +349,7 @@ function actionTagType(
               <!-- IP mode -->
               <template v-else>
                 <n-input
+                  key="ip"
                   v-model:value="ipInput"
                   placeholder="输入目标 IP 地址 (IPv4 或 IPv6)"
                 />
@@ -425,7 +431,7 @@ function actionTagType(
               </n-descriptions-item>
               <n-descriptions-item label="最终动作">
                 <n-tag
-                  v-if="!v.ip_rule_match && !v.dns_rule_match"
+                  v-if="!v.ip_rule_match && !v.dns_rule_match && !v.has_cache"
                   type="default"
                   size="small"
                 >

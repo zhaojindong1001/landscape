@@ -109,6 +109,7 @@ tokio-rustls = "0.26.4"
 tokio-util = { version = "0.7.17", features = ["codec", "net"] }
 
 cidr = { version = "0.3.2" }
+idna = "1.0.3"
 
 # databse
 sea-orm = { version = "1.1.19" }

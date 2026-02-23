@@ -41,6 +41,9 @@ pub struct CheckDnsReq {
 
 impl CheckDnsReq {
     pub fn get_domain(&self) -> String {
-        format!("{}.", self.domain)
+        match idna::domain_to_ascii(&self.domain) {
+            Ok(ascii) => format!("{}.", ascii),
+            Err(_) => format!("{}.", self.domain),
+        }
     }
 }

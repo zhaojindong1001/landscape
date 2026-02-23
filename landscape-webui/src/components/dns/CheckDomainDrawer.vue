@@ -66,10 +66,15 @@ const options = [
 function extractDomain(input: string): string {
   let s = input.trim();
   try {
-    const url = new URL(s);
-    return url.hostname;
+    return new URL(s).hostname;
   } catch {
-    return s.replace(/\/.*$/, "");
+    s = s.replace(/\/.*$/, "");
+  }
+  // Convert IDN (e.g. Chinese domains) to Punycode
+  try {
+    return new URL("http://" + s).hostname;
+  } catch {
+    return s;
   }
 }
 
@@ -77,13 +82,13 @@ const loading = ref(false);
 const config_rule = ref<DnsRule>();
 const redirect_rule = ref<DNSRedirectRule>();
 async function query() {
-  req.value.domain = extractDomain(req.value.domain);
-  if (req.value.domain !== "") {
+  const domain = extractDomain(req.value.domain);
+  if (domain !== "") {
     loading.value = true;
     try {
       config_rule.value = undefined;
       redirect_rule.value = undefined;
-      result.value = await check_domain(req.value);
+      result.value = await check_domain({ ...req.value, domain });
       if (result.value.rule_id) {
         config_rule.value = await get_dns_rule(result.value.rule_id);
       }
