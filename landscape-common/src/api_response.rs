@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone, TS)]
-#[ts(export, export_to = "common/api.ts")]
+#[ts(export, export_to = "common/api.d.ts")]
 pub struct LandscapeApiResp<T> {
     pub code: u32,
     pub message: String,

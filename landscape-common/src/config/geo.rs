@@ -117,7 +117,7 @@ pub struct QueryGeoDomainConfig {
 
 /// Geo IP
 #[derive(Serialize, Deserialize, Clone, Debug, TS)]
-#[ts(export, export_to = "common/geo_ip.ts")]
+#[ts(export, export_to = "common/geo_ip.d.ts")]
 pub struct GeoIpSourceConfig {
     /// 用这个 ID 作为文件名称
     pub id: Option<Uuid>,
@@ -133,14 +133,14 @@ pub struct GeoIpSourceConfig {
 
 #[derive(Serialize, Deserialize, Clone, Debug, TS)]
 #[serde(tag = "t", rename_all = "snake_case")]
-#[ts(export, export_to = "common/geo_ip.ts")]
+#[ts(export, export_to = "common/geo_ip.d.ts")]
 pub enum GeoIpSource {
     Url { url: String, next_update_at: f64 },
     Direct { data: Vec<GeoIpDirectItem> },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, TS)]
-#[ts(export, export_to = "common/geo_ip.ts")]
+#[ts(export, export_to = "common/geo_ip.d.ts")]
 pub struct GeoIpDirectItem {
     pub key: String,
     pub values: Vec<IpConfig>,
@@ -153,7 +153,7 @@ impl LandscapeDBStore<Uuid> for GeoIpSourceConfig {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, TS)]
-#[ts(export, export_to = "common/geo_ip.ts")]
+#[ts(export, export_to = "common/geo_ip.d.ts")]
 pub struct GeoIpConfig {
     pub name: String,
     pub key: String,
@@ -168,7 +168,7 @@ impl LandscapeStoreTrait for GeoIpConfig {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, PartialEq, Eq, TS)]
-#[ts(export, export_to = "common/geo_ip.ts")]
+#[ts(export, export_to = "common/geo_ip.d.ts")]
 pub struct QueryGeoIpConfig {
     pub name: Option<String>,
 }
