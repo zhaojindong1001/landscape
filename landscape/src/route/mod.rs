@@ -134,8 +134,13 @@ impl IpRouteService {
 
     pub async fn insert_ipv4_lan_route(&self, key: &str, info: LanRouteInfo) {
         let mut lock = self.ipv4_lan_ifaces.write().await;
+        let old_info = lock.insert(key.to_string(), info.clone());
         add_lan_route(info.clone());
-        lock.insert(key.to_string(), info);
+        if let Some(old) = old_info {
+            if !old.is_same_subnet(&info) {
+                del_lan_route(old);
+            }
+        }
         drop(lock);
     }
 

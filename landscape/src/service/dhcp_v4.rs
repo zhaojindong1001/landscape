@@ -10,6 +10,7 @@ use landscape_common::dhcp::v4_server::status::DHCPv4OfferInfo;
 use landscape_common::route::LanRouteInfo;
 use landscape_common::route::LanRouteMode;
 use landscape_common::service::controller_service_v2::ControllerService;
+use landscape_common::service::service_code::WatchService;
 use landscape_common::service::DefaultServiceStatus;
 use landscape_common::service::DefaultWatchServiceStatus;
 use landscape_common::store::storev2::LandscapeStore;
@@ -59,34 +60,46 @@ impl ServiceStarterTrait for DHCPv4ServerStarter {
     async fn start(&self, mut config: DHCPv4ServiceConfig) -> DefaultWatchServiceStatus {
         let service_status = DefaultWatchServiceStatus::new();
 
-        if config.enable {
-            // 获取全局及本接口的 IP-MAC 绑定信息, 并同步到当前 DHCP 服务的静态绑定中
-            use landscape_common::dhcp::v4_server::config::MacBindingRecord;
+        if let Some(iface) = get_iface_by_name(&config.iface_name).await {
+            // 无论是否启用 DHCP 服务，只要配置存在且接口存在就设置 LAN route
+            let info = LanRouteInfo {
+                ifindex: iface.index,
+                iface_name: config.iface_name.clone(),
+                mac: iface.mac,
+                iface_ip: std::net::IpAddr::V4(config.config.server_ip_addr),
+                prefix: config.config.network_mask,
+                mode: LanRouteMode::Reachable,
+            };
+            self.route_service.insert_ipv4_lan_route(&config.iface_name, info).await;
 
-            let bindings = self
-                .db_provider
-                .enrolled_device_store()
-                .find_dhcp_bindings(
-                    config.iface_name.clone(),
-                    config.config.server_ip_addr,
-                    config.config.network_mask,
-                )
-                .await
-                .unwrap_or_default();
+            if config.enable {
+                // 获取全局及本接口的 IP-MAC 绑定信息, 并同步到当前 DHCP 服务的静态绑定中
+                use landscape_common::dhcp::v4_server::config::MacBindingRecord;
 
-            // 清理原有的静态绑定信息（已迁移到全局设备管理），以全局设备管理库为准
-            config.config.mac_binding_records.clear();
+                let bindings = self
+                    .db_provider
+                    .enrolled_device_store()
+                    .find_dhcp_bindings(
+                        config.iface_name.clone(),
+                        config.config.server_ip_addr,
+                        config.config.network_mask,
+                    )
+                    .await
+                    .unwrap_or_default();
 
-            for binding in bindings {
-                if let Some(ipv4) = binding.ipv4 {
-                    config.config.mac_binding_records.push(MacBindingRecord {
-                        mac: binding.mac,
-                        ip: ipv4,
-                        expire_time: 86400,
-                    });
+                // 清理原有的静态绑定信息（已迁移到全局设备管理），以全局设备管理库为准
+                config.config.mac_binding_records.clear();
+
+                for binding in bindings {
+                    if let Some(ipv4) = binding.ipv4 {
+                        config.config.mac_binding_records.push(MacBindingRecord {
+                            mac: binding.mac,
+                            ip: ipv4,
+                            expire_time: 86400,
+                        });
+                    }
                 }
-            }
-            if let Some(iface) = get_iface_by_name(&config.iface_name).await {
+
                 let store_key = config.get_store_key();
                 let assigned_ips = {
                     let mut write = self.iface_lease_map.write().await;
@@ -96,23 +109,12 @@ impl ServiceStarterTrait for DHCPv4ServerStarter {
                         .clone()
                 };
 
-                let route_service = self.route_service.clone();
                 let status = service_status.clone();
                 let stop_dhcp_server = CancellationToken::new();
                 let stop_dhcp_server_child = stop_dhcp_server.child_token();
                 let server_addr = config.config.server_ip_addr;
                 let network_mask = config.config.network_mask;
                 tokio::spawn(async move {
-                    let info = LanRouteInfo {
-                        ifindex: iface.index,
-                        iface_name: config.iface_name.clone(),
-                        mac: iface.mac,
-                        iface_ip: std::net::IpAddr::V4(config.config.server_ip_addr.clone()),
-                        prefix: config.config.network_mask,
-                        mode: LanRouteMode::Reachable,
-                    };
-                    let iface_name = config.iface_name.clone();
-                    route_service.insert_ipv4_lan_route(&iface_name, info.clone()).await;
                     crate::dhcp_server::dhcp_server_new::dhcp_v4_server(
                         config.iface_name,
                         config.config,
@@ -120,7 +122,6 @@ impl ServiceStarterTrait for DHCPv4ServerStarter {
                         assigned_ips,
                     )
                     .await;
-                    route_service.remove_ipv4_lan_route(&iface_name).await;
                     stop_dhcp_server.cancel();
                 });
 
@@ -159,9 +160,9 @@ impl ServiceStarterTrait for DHCPv4ServerStarter {
                         tracing::info!("DHCPv4 Server ARP scan stop");
                     });
                 }
-            } else {
-                tracing::error!("Interface {} not found", config.iface_name);
             }
+        } else {
+            tracing::error!("Interface {} not found", config.iface_name);
         }
 
         service_status
@@ -176,6 +177,7 @@ pub struct DHCPv4ServerManagerService {
     server_starter: DHCPv4ServerStarter,
 }
 
+#[async_trait::async_trait]
 impl ControllerService for DHCPv4ServerManagerService {
     type Id = String;
 
@@ -191,6 +193,16 @@ impl ControllerService for DHCPv4ServerManagerService {
 
     fn get_repository(&self) -> &Self::DatabseAction {
         &self.store
+    }
+
+    async fn delete_and_stop_iface_service(
+        &self,
+        iface_name: Self::Id,
+    ) -> Option<WatchService<<Self::H as ServiceStarterTrait>::Status>> {
+        self.get_repository().delete(iface_name.clone()).await.unwrap();
+        let result = self.get_service().stop_service(iface_name.clone()).await;
+        self.server_starter.route_service.remove_ipv4_lan_route(&iface_name).await;
+        result
     }
 }
 
