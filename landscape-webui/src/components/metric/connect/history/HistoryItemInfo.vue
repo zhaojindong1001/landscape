@@ -5,7 +5,14 @@ import {
 } from "landscape-types/common/metric/connect";
 import { useFrontEndStore } from "@/stores/front_end_config";
 import { useRouter } from "vue-router";
-import { ChartLine, ArrowUp, ArrowDown, Search, Flash } from "@vicons/carbon";
+import {
+  ChartLine,
+  ArrowUp,
+  ArrowDown,
+  ArrowRight,
+  Search,
+  Flash,
+} from "@vicons/carbon";
 import { mask_string } from "@/lib/common";
 import { formatSize, formatCount } from "@/lib/util";
 import { useThemeVars } from "naive-ui";
@@ -128,7 +135,13 @@ const emit = defineEmits([
             </n-flex>
           </n-flex>
 
-          <n-flex style="width: 240px">
+          <n-flex
+            style="
+              width: 240px;
+              font-variant-numeric: tabular-nums;
+              font-family: monospace;
+            "
+          >
             <n-tag type="success" :bordered="false" size="small">
               {{ history.l3_proto == 0 ? "IPV4" : "IPV6" }}
             </n-tag>
@@ -150,17 +163,20 @@ const emit = defineEmits([
             style="width: 800px; font-variant-numeric: tabular-nums"
             size="small"
           >
-            <span>
-              {{
-                `${enrolledDeviceStore.GET_NAME_WITH_FALLBACK(
-                  history.src_ip,
-                )}:${frontEndStore.MASK_PORT(
-                  history.src_port,
-                )} => ${enrolledDeviceStore.GET_NAME_WITH_FALLBACK(
-                  history.dst_ip,
-                )}:${frontEndStore.MASK_PORT(history.dst_port)}`
-              }}
-            </span>
+            <div
+              style="display: inline-flex; align-items: center; gap: 4px"
+              :style="{
+                flexDirection: history.gress === 0 ? 'row-reverse' : 'row',
+              }"
+            >
+              <span>{{
+                `${enrolledDeviceStore.GET_NAME_WITH_FALLBACK(history.src_ip)}:${frontEndStore.MASK_PORT(history.src_port)}`
+              }}</span>
+              <n-icon size="14" color="#888"><ArrowRight /></n-icon>
+              <span>{{
+                `${enrolledDeviceStore.GET_NAME_WITH_FALLBACK(history.dst_ip)}:${frontEndStore.MASK_PORT(history.dst_port)}`
+              }}</span>
+            </div>
             <n-tooltip trigger="hover">
               <template #trigger>
                 <n-button

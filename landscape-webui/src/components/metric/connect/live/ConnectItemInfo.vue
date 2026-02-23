@@ -5,7 +5,14 @@ import {
 } from "landscape-types/common/metric/connect";
 import { useFrontEndStore } from "@/stores/front_end_config";
 import { useRouter } from "vue-router";
-import { ChartLine, ArrowUp, ArrowDown, Search, Catalog } from "@vicons/carbon";
+import {
+  ChartLine,
+  ArrowUp,
+  ArrowDown,
+  ArrowRight,
+  Search,
+  Catalog,
+} from "@vicons/carbon";
 import { mask_string } from "@/lib/common";
 import { formatRate, formatPackets } from "@/lib/util";
 import { useThemeVars } from "naive-ui";
@@ -134,7 +141,13 @@ const emit = defineEmits([
             </n-tooltip>
           </n-flex>
 
-          <n-flex style="width: 240px">
+          <n-flex
+            style="
+              width: 240px;
+              font-variant-numeric: tabular-nums;
+              font-family: monospace;
+            "
+          >
             <n-tag type="success" :bordered="false" size="small">
               {{ conn.l3_proto == 0 ? "IPV4" : "IPV6" }}
             </n-tag>
@@ -165,27 +178,30 @@ const emit = defineEmits([
             style="width: 800px; font-variant-numeric: tabular-nums"
             size="small"
           >
-            <span>
-              {{
-                `${enrolledDeviceStore.GET_NAME_WITH_FALLBACK(
-                  conn.src_ip,
-                )}:${frontEndStore.MASK_PORT(
-                  conn.src_port,
-                )} => ${enrolledDeviceStore.GET_NAME_WITH_FALLBACK(
-                  conn.dst_ip,
-                )}:${frontEndStore.MASK_PORT(conn.dst_port)}`
-              }}
-            </span>
+            <div
+              style="display: inline-flex; align-items: center; gap: 4px"
+              :style="{
+                flexDirection: conn.gress === 0 ? 'row-reverse' : 'row',
+              }"
+            >
+              <span>{{
+                `${enrolledDeviceStore.GET_NAME_WITH_FALLBACK(conn.src_ip)}:${frontEndStore.MASK_PORT(conn.src_port)}`
+              }}</span>
+              <n-icon size="14" color="#888"><ArrowRight /></n-icon>
+              <span>{{
+                `${enrolledDeviceStore.GET_NAME_WITH_FALLBACK(conn.dst_ip)}:${frontEndStore.MASK_PORT(conn.dst_port)}`
+              }}</span>
+            </div>
             <n-tooltip trigger="hover">
               <template #trigger>
                 <n-button
                   text
                   @click.stop="emit('search:tuple', conn)"
-                  style="
-                    font-size: 16px;
-                    color: themeVars.infoColor;
-                    opacity: 0.7;
-                  "
+                  :style="{
+                    fontSize: '16px',
+                    color: themeVars.infoColor,
+                    opacity: 0.7,
+                  }"
                 >
                   <n-icon><Search /></n-icon>
                 </n-button>
@@ -198,11 +214,11 @@ const emit = defineEmits([
                 <n-button
                   text
                   @click.stop="goToHistory(conn)"
-                  style="
-                    font-size: 16px;
-                    color: themeVars.warningColor;
-                    opacity: 0.7;
-                  "
+                  :style="{
+                    fontSize: '16px',
+                    color: themeVars.warningColor,
+                    opacity: 0.7,
+                  }"
                 >
                   <n-icon><Catalog /></n-icon>
                 </n-button>

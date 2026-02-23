@@ -31,6 +31,8 @@ export default {
     port: "端口",
     create_time: "创建时间",
     gress: "方向",
+    gress_egress: "出站",
+    gress_ingress: "入站",
   },
   stats: {
     live_src: "源 IP 实时统计",

@@ -31,6 +31,8 @@ export default {
     port: "Port",
     create_time: "Create Time",
     gress: "Direction",
+    gress_egress: "Outbound",
+    gress_ingress: "Inbound",
   },
   stats: {
     live_src: "Src IP Real-time Stats",

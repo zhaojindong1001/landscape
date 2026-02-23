@@ -83,8 +83,8 @@ const protocolOptions = computed(() => [
 // 方向选项
 const gressOptions = computed(() => [
   { label: t("metric.connect.all_types"), value: null },
-  { label: "Egress", value: 1 },
-  { label: "Ingress", value: 0 },
+  { label: t("metric.connect.filter.gress_egress"), value: 1 },
+  { label: t("metric.connect.filter.gress_ingress"), value: 0 },
 ]);
 
 const timeRangeOptions = computed(() => [
