@@ -3,6 +3,7 @@ import { ref, computed, h } from "vue";
 import { formatRate, formatPackets } from "@/lib/util";
 import { useThemeVars, NTooltip, NIcon, NButton } from "naive-ui";
 import { Search } from "@vicons/carbon";
+import { GlobeSearch24Regular } from "@vicons/fluent";
 import type { IpRealtimeStat } from "@landscape-router/types/api/schemas";
 import FlowExhibit from "@/components/flow/FlowExhibit.vue";
 
@@ -18,6 +19,7 @@ const props = defineProps<{
   stats: any[]; // 更通用的类型，支持带 flow_id
   title: string;
   ipLabel: string;
+  showGeoLookup?: boolean;
 }>();
 
 const { t } = useI18n();
@@ -53,6 +55,43 @@ const columns = computed(() => [
                 )
               : null,
           ]),
+          props.showGeoLookup
+            ? h(
+                NTooltip,
+                { trigger: "hover", placement: "right" },
+                {
+                  trigger: () =>
+                    h(
+                      NButton,
+                      {
+                        text: true,
+                        tag: "a",
+                        href: `https://edge-geo.y8955.workers.dev/${row.ip}`,
+                        target: "_blank",
+                        style: {
+                          fontSize: "16px",
+                          color: themeVars.value.warningColor,
+                          opacity: 0.6,
+                          display: "flex",
+                          transition: "opacity 0.2s",
+                        },
+                        onMouseenter: (e: MouseEvent) => {
+                          (e.currentTarget as HTMLElement).style.opacity = "1";
+                        },
+                        onMouseleave: (e: MouseEvent) => {
+                          (e.currentTarget as HTMLElement).style.opacity =
+                            "0.6";
+                        },
+                      },
+                      {
+                        icon: () =>
+                          h(NIcon, { component: GlobeSearch24Regular }),
+                      },
+                    ),
+                  default: () => "查询目标 IP 归属",
+                },
+              )
+            : null,
           h(
             NTooltip,
             { trigger: "hover", placement: "right" },

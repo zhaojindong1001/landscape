@@ -156,6 +156,7 @@ onMounted(async () => {
       :stats="stats"
       :title="$t('metric.connect.stats.live_dst')"
       :ip-label="$t('metric.connect.col.dst_ip')"
+      show-geo-lookup
       @search:ip="(ip) => (ipFilter = ip)"
     />
   </n-flex>

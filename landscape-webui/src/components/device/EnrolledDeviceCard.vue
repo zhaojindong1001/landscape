@@ -98,7 +98,7 @@ async function del() {
     </template>
 
     <n-descriptions
-      label-style="width: 80px"
+      label-style="width: 100px"
       bordered
       label-placement="left"
       :column="1"

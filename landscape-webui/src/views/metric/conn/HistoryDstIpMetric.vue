@@ -226,6 +226,7 @@ onMounted(() => {
         :ip-label="$t('metric.connect.col.dst_ip')"
         :sort-key="sortKey"
         :sort-order="sortOrder"
+        show-geo-lookup
         @update:sort="handleSortChange"
         @search:ip="(ip) => (ipSearch = ip)"
       />

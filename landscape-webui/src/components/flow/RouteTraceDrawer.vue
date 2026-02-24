@@ -40,7 +40,7 @@ const deviceOptions = computed(() =>
   enrolledDeviceStore.bindings
     .filter((d) => d.ipv4 || d.mac)
     .map((d) => ({
-      label: `${d.name} (${d.ipv4 || d.mac})`,
+      label: `${enrolledDeviceStore.GET_DISPLAY_NAME(d.mac)} (${frontEndStore.MASK_INFO(d.ipv4 || d.mac)})`,
       value: d.mac,
     })),
 );

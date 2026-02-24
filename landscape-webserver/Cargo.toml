@@ -60,4 +60,5 @@ tracing = { workspace = true }
 [features]
 default = []
 static = ["landscape-ebpf/static"]
+metric-duckdb = ["landscape/metric-duckdb"]
 duckdb-bundled = ["landscape/duckdb-bundled"]

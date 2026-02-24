@@ -13,6 +13,7 @@ import {
   Search,
   Flash,
 } from "@vicons/carbon";
+import { GlobeSearch24Regular } from "@vicons/fluent";
 import { mask_string } from "@/lib/common";
 import { formatSize, formatCount } from "@/lib/util";
 import { useThemeVars } from "naive-ui";
@@ -177,6 +178,25 @@ const emit = defineEmits([
                 `${enrolledDeviceStore.GET_NAME_WITH_FALLBACK(history.dst_ip)}:${frontEndStore.MASK_PORT(history.dst_port)}`
               }}</span>
             </div>
+            <n-tooltip trigger="hover">
+              <template #trigger>
+                <n-button
+                  text
+                  tag="a"
+                  :href="`https://edge-geo.y8955.workers.dev/${history.dst_ip}`"
+                  target="_blank"
+                  @click.stop
+                  :style="{
+                    fontSize: '16px',
+                    color: themeVars.warningColor,
+                    opacity: 0.7,
+                  }"
+                >
+                  <n-icon><GlobeSearch24Regular /></n-icon>
+                </n-button>
+              </template>
+              查询目标 IP 归属
+            </n-tooltip>
             <n-tooltip trigger="hover">
               <template #trigger>
                 <n-button
