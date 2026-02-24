@@ -400,7 +400,45 @@ async fn run(home_path: PathBuf, config: RuntimeConfig) -> LdResult<()> {
         .nest("/v1", v1_route)
         .nest("/ws", ws_route)
         .nest("/auth", auth::get_auth_route(auth_share))
-        .merge(Scalar::with_url("/docs", openapi));
+        .merge(Scalar::with_url("/docs", openapi).custom_html(
+            r#"<!doctype html>
+<html>
+<head>
+    <title>Landscape API Docs</title>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <style>
+        .home-btn {
+            position: fixed;
+            top: 12px;
+            right: 24px;
+            z-index: 9999;
+            padding: 6px 16px;
+            background: #3451b2;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            text-decoration: none;
+            line-height: 1.5;
+        }
+        .home-btn:hover {
+            background: #2c3e8f;
+        }
+    </style>
+</head>
+<body>
+<a class="home-btn" href="/">Home</a>
+<script
+        id="api-reference"
+        type="application/json">
+    $spec
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+</body>
+</html>"#,
+        ));
     let app = Router::new()
         .nest("/api", api_route)
         // .nest("/sock", sockets_route)
