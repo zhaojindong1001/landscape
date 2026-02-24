@@ -1,8 +1,22 @@
 {
-  "name": "landscape-types",
+  "name": "@landscape-router/types",
   "version": "0.13.1",
-  "private": true,
+  "description": "TypeScript API client and type definitions for Landscape Router, auto-generated from OpenAPI spec.",
   "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ThisSeanZhang/landscape.git",
+    "directory": "landscape-types"
+  },
+  "homepage": "https://github.com/ThisSeanZhang/landscape",
+  "keywords": [
+    "landscape",
+    "router",
+    "api-client",
+    "openapi",
+    "typescript"
+  ],
   "exports": {
     "./*": "./src/*"
   },
@@ -15,8 +29,12 @@
       ]
     }
   },
+  "files": [
+    "src"
+  ],
   "scripts": {
-    "generate": "orval"
+    "generate": "orval",
+    "prepublishOnly": "echo 'Run gen_ts_bindings.sh before publishing' && test -f src/api/schemas/index.ts"
   },
   "peerDependencies": {
     "axios": ">=1.0.0"
