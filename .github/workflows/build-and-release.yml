@@ -302,9 +302,22 @@ jobs:
           mkdir -p output
           pnpm install --frozen-lockfile
           pnpm --filter @landscape-router/types generate
+
+          # Copy Scalar API Reference resources
+          mkdir -p landscape-webui/public/scalar
+          cp landscape-webui/node_modules/@scalar/api-reference/dist/browser/standalone.js landscape-webui/public/scalar/
+          cp landscape-webui/node_modules/@scalar/api-reference/dist/style.css landscape-webui/public/scalar/
+
           pnpm --filter landscape-webui build
           cd landscape-webui
-          mkdir static && mv dist/* static/
+          mkdir static
+          # Merge dist and public/scalar into static
+          cp -r dist/* static/
+          if [ -d public/scalar ]; then
+            mkdir -p static/scalar
+            cp public/scalar/*.js static/scalar/ 2>/dev/null || true
+            cp public/scalar/*.css static/scalar/ 2>/dev/null || true
+          fi
           zip -r ../output/static.zip static
         env:
           NODE_OPTIONS: --max-old-space-size=8192

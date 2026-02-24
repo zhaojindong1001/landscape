@@ -26,3 +26,6 @@ dist-ssr
 
 auto-imports.d.ts
 components.d.ts
+
+# Build artifacts
+public/scalar

@@ -407,6 +407,7 @@ async fn run(home_path: PathBuf, config: RuntimeConfig) -> LdResult<()> {
     <title>Landscape API Docs</title>
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <link rel="stylesheet" href="/scalar/style.css"/>
     <style>
         .home-btn {
             position: fixed;
@@ -435,7 +436,7 @@ async fn run(home_path: PathBuf, config: RuntimeConfig) -> LdResult<()> {
         type="application/json">
     $spec
 </script>
-<script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+<script src="/scalar/standalone.js"></script>
 </body>
 </html>"#,
         ));
