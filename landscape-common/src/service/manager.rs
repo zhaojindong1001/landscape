@@ -14,8 +14,6 @@ pub trait ServiceStarterTrait: Clone + Send + Sync + 'static {
     async fn start(&self, config: Self::Config) -> WatchService;
 }
 
-/// T: 定义被观察的状态
-/// S：存储的配置
 #[derive(Clone)]
 pub struct ServiceManager<H: ServiceStarterTrait> {
     pub services: Arc<RwLock<HashMap<String, (WatchService, mpsc::Sender<H::Config>)>>>,
@@ -52,7 +50,6 @@ impl<H: ServiceStarterTrait> ServiceManager<H> {
             while let Some(config) = rx.recv().await {
                 if let Some(exist_status) = iface_status.take() {
                     exist_status.wait_stop().await;
-                    drop(exist_status);
                 }
 
                 let key = config.get_store_key();
@@ -63,14 +60,14 @@ impl<H: ServiceStarterTrait> ServiceManager<H> {
                 if let Some((target, _)) = write_lock.get_mut(&key) {
                     *target = status;
                 } else {
-                    tracing::error!("get service map lock error, break loop");
+                    tracing::warn!("service '{key}' removed from map during restart, exiting loop");
                     break;
                 }
                 drop(write_lock);
             }
 
             if let Some(exist_status) = iface_status.take() {
-                tracing::error!("exist running service, stop it");
+                tracing::debug!("config channel closed, stopping running service");
                 exist_status.wait_stop().await;
             }
         });
@@ -83,11 +80,11 @@ impl<H: ServiceStarterTrait> ServiceManager<H> {
             let result = if let Err(e) = sender.try_send(config) {
                 match e {
                     mpsc::error::TrySendError::Full(_) => {
-                        tracing::error!("已经有配置在等待了");
+                        tracing::warn!(key, "config update already pending, dropping new config");
                         Err(())
                     }
                     mpsc::error::TrySendError::Closed(_) => {
-                        tracing::error!("内部错误");
+                        tracing::error!(key, "service task exited unexpectedly");
                         Err(())
                     }
                 }

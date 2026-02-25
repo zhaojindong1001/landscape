@@ -46,9 +46,7 @@ impl ServiceStatus {
                 | (ServiceStatus::Stopping, ServiceStatus::Stop)
         );
         if !can {
-            tracing::error!(
-                "can not change status, current status: {self:?}, target status: {target:?}"
-            );
+            tracing::warn!("invalid status transition: {self:?} -> {target:?}");
         }
         can
     }
@@ -67,10 +65,12 @@ impl WatchService {
     pub fn just_change_status(&self, new_status: ServiceStatus) {
         self.0.send_if_modified(|current| {
             if current.can_transition_to(&new_status) {
-                tracing::debug!("change to new status: {new_status:?}");
+                tracing::debug!("status changed to {new_status:?}");
                 *current = new_status;
+                true
+            } else {
+                false
             }
-            true
         });
     }
 
@@ -110,10 +110,10 @@ impl WatchService {
     }
 }
 
-async fn wait_status_stop(ip_service_status: &watch::Sender<ServiceStatus>) {
+async fn wait_status_stop(sender: &watch::Sender<ServiceStatus>) {
     let mut do_wait = false;
-    ip_service_status.send_if_modified(|status| {
-        tracing::info!("当前服务的状态: {:?}", status);
+    sender.send_if_modified(|status| {
+        tracing::debug!("current status: {status:?}, requesting stop");
         match status {
             ServiceStatus::Staring | ServiceStatus::Running => {
                 if status.can_transition_to(&ServiceStatus::Stopping) {
@@ -126,35 +126,25 @@ async fn wait_status_stop(ip_service_status: &watch::Sender<ServiceStatus>) {
                 do_wait = true;
                 false
             }
-            ServiceStatus::Stop { .. } => {
+            ServiceStatus::Stop => {
                 do_wait = false;
                 false
             }
         }
     });
-    tracing::info!("当前需要等待之前状态结束吗?: {do_wait}");
     if do_wait {
-        tracing::info!("那么进行等待");
-        let _ = ip_service_status
-            .subscribe()
-            .wait_for(|status| matches!(status, ServiceStatus::Stop))
-            .await;
-        tracing::info!("前一个服务等待停止结束");
+        tracing::debug!("waiting for service to stop");
+        let _ = sender.subscribe().wait_for(|status| matches!(status, ServiceStatus::Stop)).await;
+        tracing::debug!("service stopped");
     }
 }
 
-async fn wait_status_running(ip_service_status: &watch::Sender<ServiceStatus>) {
-    let mut do_wait = false;
-
-    let status = ip_service_status.borrow().clone();
-    if matches!(status, ServiceStatus::Staring) {
-        do_wait = true;
-    }
-    if do_wait {
-        let _ = ip_service_status
-            .subscribe()
-            .wait_for(|status| matches!(status, ServiceStatus::Running))
-            .await;
+async fn wait_status_running(sender: &watch::Sender<ServiceStatus>) {
+    if matches!(*sender.borrow(), ServiceStatus::Staring) {
+        tracing::debug!("waiting for service to start");
+        let _ =
+            sender.subscribe().wait_for(|status| matches!(status, ServiceStatus::Running)).await;
+        tracing::debug!("service started");
     }
 }
 
