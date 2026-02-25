@@ -8,7 +8,7 @@ use bollard::{
 use landscape_common::docker::DockerTargetEnroll;
 use landscape_common::{
     route::RouteTargetInfo,
-    service::{DefaultWatchServiceStatus, ServiceStatus},
+    service::{ServiceStatus, WatchService},
 };
 use regex::Regex;
 use serde::Serialize;
@@ -26,7 +26,7 @@ pub mod unix_sock;
 /// Docker Service
 #[derive(Serialize, Clone)]
 pub struct LandscapeDockerService {
-    pub status: DefaultWatchServiceStatus,
+    pub status: WatchService,
     #[serde(skip)]
     route_service: IpRouteService,
     #[serde(skip)]
@@ -37,7 +37,7 @@ pub struct LandscapeDockerService {
 
 impl LandscapeDockerService {
     pub fn new(home_path: PathBuf, route_service: IpRouteService) -> Self {
-        let status = DefaultWatchServiceStatus::new();
+        let status = WatchService::new();
         let pull_manager = PullManager::new();
         LandscapeDockerService { status, route_service, home_path, pull_manager }
     }

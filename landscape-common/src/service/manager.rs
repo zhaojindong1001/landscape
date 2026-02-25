@@ -4,22 +4,21 @@ use tokio::sync::{mpsc, RwLock};
 
 use crate::store::storev2::LandscapeStore;
 
-use super::service_code::{WatchService, WatchServiceTrait};
+use super::WatchService;
 
 #[async_trait::async_trait]
 pub trait ServiceStarterTrait: Clone + Send + Sync + 'static {
-    type Status: WatchServiceTrait + Send + Sync + 'static;
     type Config: LandscapeStore + Send + Sync + 'static;
 
     /// 核心服务初始化逻辑
-    async fn start(&self, config: Self::Config) -> WatchService<Self::Status>;
+    async fn start(&self, config: Self::Config) -> WatchService;
 }
 
 /// T: 定义被观察的状态
 /// S：存储的配置
 #[derive(Clone)]
 pub struct ServiceManager<H: ServiceStarterTrait> {
-    pub services: Arc<RwLock<HashMap<String, (WatchService<H::Status>, mpsc::Sender<H::Config>)>>>,
+    pub services: Arc<RwLock<HashMap<String, (WatchService, mpsc::Sender<H::Config>)>>>,
     pub starter: H,
 }
 
@@ -48,7 +47,7 @@ impl<H: ServiceStarterTrait> ServiceManager<H> {
         let service_map = self.services.clone();
         let starter = self.starter.clone();
         tokio::spawn(async move {
-            let mut iface_status: Option<WatchService<H::Status>> = Some(service_status);
+            let mut iface_status: Option<WatchService> = Some(service_status);
 
             while let Some(config) = rx.recv().await {
                 if let Some(exist_status) = iface_status.take() {
@@ -104,7 +103,7 @@ impl<H: ServiceStarterTrait> ServiceManager<H> {
         }
     }
 
-    pub async fn get_all_status(&self) -> HashMap<String, WatchService<H::Status>> {
+    pub async fn get_all_status(&self) -> HashMap<String, WatchService> {
         let read_lock = self.services.read().await;
         let mut result = HashMap::new();
         for (key, (iface_status, _)) in read_lock.iter() {
@@ -113,7 +112,7 @@ impl<H: ServiceStarterTrait> ServiceManager<H> {
         result
     }
 
-    pub async fn stop_service(&self, name: String) -> Option<WatchService<H::Status>> {
+    pub async fn stop_service(&self, name: String) -> Option<WatchService> {
         let mut write_lock = self.services.write().await;
         if let Some((iface_status, _)) = write_lock.remove(&name) {
             drop(write_lock);
@@ -125,7 +124,7 @@ impl<H: ServiceStarterTrait> ServiceManager<H> {
     }
 
     pub async fn stop_all(&self) {
-        let entries: Vec<(String, WatchService<H::Status>)> = {
+        let entries: Vec<(String, WatchService)> = {
             let mut write_lock = self.services.write().await;
             write_lock.drain().map(|(key, (status, _sender))| (key, status)).collect()
         };

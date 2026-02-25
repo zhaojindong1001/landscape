@@ -3,9 +3,9 @@ use landscape_common::{
     config::mss_clamp::MSSClampServiceConfig,
     observer::IfaceObserverAction,
     service::{
-        controller_service_v2::ControllerService,
-        service_manager_v2::{ServiceManager, ServiceStarterTrait},
-        DefaultServiceStatus, DefaultWatchServiceStatus, ServiceStatus,
+        controller::ControllerService,
+        manager::{ServiceManager, ServiceStarterTrait},
+        ServiceStatus, WatchService,
     },
 };
 use landscape_database::{
@@ -20,12 +20,10 @@ pub struct MssClampService;
 
 #[async_trait::async_trait]
 impl ServiceStarterTrait for MssClampService {
-    type Status = DefaultServiceStatus;
-
     type Config = MSSClampServiceConfig;
 
-    async fn start(&self, config: MSSClampServiceConfig) -> DefaultWatchServiceStatus {
-        let service_status = DefaultWatchServiceStatus::new();
+    async fn start(&self, config: MSSClampServiceConfig) -> WatchService {
+        let service_status = WatchService::new();
 
         if config.enable {
             if let Some(iface) = get_iface_by_name(&config.iface_name).await {
@@ -52,7 +50,7 @@ pub async fn run_mss_clamp(
     ifindex: i32,
     mtu_size: u16,
     has_mac: bool,
-    service_status: DefaultWatchServiceStatus,
+    service_status: WatchService,
 ) {
     service_status.just_change_status(ServiceStatus::Staring);
     let (tx, rx) = oneshot::channel::<()>();

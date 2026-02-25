@@ -1,8 +1,8 @@
 use axum::extract::{Path, State};
 use landscape_common::api_response::LandscapeApiResp as CommonApiResp;
-use landscape_common::service::controller_service_v2::FlowConfigController;
+use landscape_common::service::controller::FlowConfigController;
 use landscape_common::{config::ConfigId, flow::config::FlowConfig};
-use landscape_common::{config::FlowId, service::controller_service_v2::ConfigController};
+use landscape_common::{config::FlowId, service::controller::ConfigController};
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
 

@@ -3,9 +3,9 @@ use landscape_common::{
     args::LAND_HOME_PATH,
     config::wifi::WifiServiceConfig,
     service::{
-        controller_service_v2::ControllerService,
-        service_manager_v2::{ServiceManager, ServiceStarterTrait},
-        DefaultServiceStatus, DefaultWatchServiceStatus, ServiceStatus,
+        controller::ControllerService,
+        manager::{ServiceManager, ServiceStarterTrait},
+        ServiceStatus, WatchService,
     },
     LANDSCAPE_HOSTAPD_TMP_DIR,
 };
@@ -26,12 +26,10 @@ pub struct WifiService;
 
 #[async_trait::async_trait]
 impl ServiceStarterTrait for WifiService {
-    type Status = DefaultServiceStatus;
-
     type Config = WifiServiceConfig;
 
-    async fn start(&self, config: WifiServiceConfig) -> DefaultWatchServiceStatus {
-        let service_status = DefaultWatchServiceStatus::new();
+    async fn start(&self, config: WifiServiceConfig) -> WatchService {
+        let service_status = WatchService::new();
 
         if config.enable {
             if let Some(_) = get_iface_by_name(&config.iface_name).await {
@@ -48,11 +46,7 @@ impl ServiceStarterTrait for WifiService {
     }
 }
 
-pub async fn create_wifi_service(
-    iface_name: String,
-    config: String,
-    service_status: DefaultWatchServiceStatus,
-) {
+pub async fn create_wifi_service(iface_name: String, config: String, service_status: WatchService) {
     service_status.just_change_status(ServiceStatus::Staring);
 
     let (tx, mut rx) = oneshot::channel::<()>();

@@ -6,7 +6,7 @@ use landscape_common::config::{
     },
     ConfigId,
 };
-use landscape_common::service::controller_service_v2::ConfigController;
+use landscape_common::service::controller::ConfigController;
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
 

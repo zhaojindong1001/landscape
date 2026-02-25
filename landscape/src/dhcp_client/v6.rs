@@ -17,7 +17,7 @@ use crate::{dump::udp_packet::dhcp_v6::get_solicit_options, route::IpRouteServic
 
 use landscape_common::{
     ipv6_pd::IAPrefixMap,
-    service::{DefaultWatchServiceStatus, ServiceStatus},
+    service::{ServiceStatus, WatchService},
     utils::time::get_f64_timestamp,
     LANDSCAPE_DEFAULE_DHCP_V6_SERVER_PORT,
 };
@@ -179,7 +179,7 @@ pub async fn dhcp_v6_pd_client(
     // for pd request
     config_mac: MacAddr,
     client_port: u16,
-    service_status: DefaultWatchServiceStatus,
+    service_status: WatchService,
     wan_route_info: RouteTargetInfo,
     route_service: IpRouteService,
     prefix_map: IAPrefixMap,

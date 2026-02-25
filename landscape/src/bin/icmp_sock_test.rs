@@ -14,7 +14,7 @@ use landscape_common::{
     ipv6_pd::{IAPrefixMap, LDIAPrefix},
     lan_services::ipv6_ra::IPv6NAInfo,
     route::{LanRouteInfo, LanRouteMode},
-    service::{DefaultWatchServiceStatus, ServiceStatus},
+    service::{ServiceStatus, WatchService},
 };
 use tokio::sync::RwLock;
 use tracing::Level;
@@ -60,7 +60,7 @@ async fn main() {
     })
     .unwrap();
 
-    let service_status = DefaultWatchServiceStatus::new();
+    let service_status = WatchService::new();
 
     let status = service_status.clone();
 

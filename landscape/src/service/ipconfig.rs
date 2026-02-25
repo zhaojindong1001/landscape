@@ -9,9 +9,9 @@ use landscape_common::{
     global_const::default_router::{RouteInfo, RouteType, LD_ALL_ROUTERS},
     observer::IfaceObserverAction,
     service::{
-        controller_service_v2::ControllerService,
-        service_manager_v2::{ServiceManager, ServiceStarterTrait},
-        DefaultServiceStatus, DefaultWatchServiceStatus, ServiceStatus,
+        controller::ControllerService,
+        manager::{ServiceManager, ServiceStarterTrait},
+        ServiceStatus, WatchService,
     },
 };
 use landscape_database::{
@@ -35,12 +35,10 @@ impl IPConfigService {
 }
 #[async_trait::async_trait]
 impl ServiceStarterTrait for IPConfigService {
-    type Status = DefaultServiceStatus;
-
     type Config = IfaceIpServiceConfig;
 
-    async fn start(&self, config: IfaceIpServiceConfig) -> DefaultWatchServiceStatus {
-        let service_status = DefaultWatchServiceStatus::new();
+    async fn start(&self, config: IfaceIpServiceConfig) -> WatchService {
+        let service_status = WatchService::new();
 
         if config.enable {
             if let Some(iface) = get_iface_by_name(&config.iface_name).await {
@@ -63,7 +61,7 @@ impl ServiceStarterTrait for IPConfigService {
 async fn init_service_from_config(
     iface: LandscapeInterface,
     service_config: IfaceIpModelConfig,
-    service_status: DefaultWatchServiceStatus,
+    service_status: WatchService,
     route_service: IpRouteService,
 ) {
     match service_config {

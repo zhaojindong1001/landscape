@@ -3,7 +3,7 @@ use landscape_common::{
     config::geo::{GeoFileCacheKey, GeoIpConfig, GeoIpSource, GeoIpSourceConfig},
     database::LandscapeDBTrait,
     ip_mark::{IpMarkInfo, WanIPRuleSource, WanIpRuleConfig},
-    service::controller_service_v2::ConfigController,
+    service::controller::ConfigController,
     utils::time::{get_f64_timestamp, MILL_A_DAY},
 };
 use uuid::Uuid;

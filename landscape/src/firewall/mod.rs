@@ -1,11 +1,10 @@
 use landscape_common::database::{LandscapeDBTrait, LandscapeServiceDBTrait};
-use landscape_common::service::service_manager_v2::ServiceManager;
+use landscape_common::service::manager::ServiceManager;
 use landscape_common::{
     config::firewall::FirewallServiceConfig,
     observer::IfaceObserverAction,
     service::{
-        controller_service_v2::ControllerService, service_manager_v2::ServiceStarterTrait,
-        DefaultServiceStatus, DefaultWatchServiceStatus, ServiceStatus,
+        controller::ControllerService, manager::ServiceStarterTrait, ServiceStatus, WatchService,
     },
 };
 
@@ -24,12 +23,10 @@ pub struct FirewallService {}
 
 #[async_trait::async_trait]
 impl ServiceStarterTrait for FirewallService {
-    type Status = DefaultServiceStatus;
-
     type Config = FirewallServiceConfig;
 
-    async fn start(&self, config: FirewallServiceConfig) -> DefaultWatchServiceStatus {
-        let service_status = DefaultWatchServiceStatus::new();
+    async fn start(&self, config: FirewallServiceConfig) -> WatchService {
+        let service_status = WatchService::new();
 
         if config.enable {
             if let Some(iface) = get_iface_by_name(&config.iface_name).await {
@@ -47,11 +44,7 @@ impl ServiceStarterTrait for FirewallService {
     }
 }
 
-pub async fn create_firewall_service(
-    ifindex: i32,
-    has_mac: bool,
-    service_status: DefaultWatchServiceStatus,
-) {
+pub async fn create_firewall_service(ifindex: i32, has_mac: bool, service_status: WatchService) {
     service_status.just_change_status(ServiceStatus::Staring);
     let (tx, rx) = oneshot::channel::<()>();
     let (other_tx, other_rx) = oneshot::channel::<()>();

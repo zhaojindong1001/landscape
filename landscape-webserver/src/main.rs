@@ -48,7 +48,7 @@ use landscape_common::{
     config::RuntimeConfig,
     error::LdResult,
     ipv6_pd::IAPrefixMap,
-    service::controller_service_v2::ControllerService,
+    service::controller::ControllerService,
     VERSION,
 };
 use landscape_database::provider::LandscapeDBServiceProvider;

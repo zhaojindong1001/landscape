@@ -5,7 +5,7 @@ use std::net::Ipv6Addr;
 use landscape_common::ipv6_pd::IAPrefixMap;
 use landscape_common::ipv6_pd::LDIAPrefix;
 use landscape_common::route::RouteTargetInfo;
-use landscape_common::service::service_manager_v2::ServiceStarterTrait;
+use landscape_common::service::manager::ServiceStarterTrait;
 use tokio::sync::broadcast;
 
 use landscape_common::database::LandscapeDBTrait;
@@ -13,10 +13,7 @@ use landscape_common::database::LandscapeServiceDBTrait;
 use landscape_common::{
     dhcp::v6_client::config::IPV6PDServiceConfig,
     observer::IfaceObserverAction,
-    service::{
-        controller_service_v2::ControllerService, service_manager_v2::ServiceManager,
-        DefaultServiceStatus, DefaultWatchServiceStatus,
-    },
+    service::{controller::ControllerService, manager::ServiceManager, WatchService},
     LANDSCAPE_DEFAULE_DHCP_V6_CLIENT_PORT,
 };
 use landscape_database::{
@@ -40,11 +37,10 @@ impl IPV6PDService {
 
 #[async_trait::async_trait]
 impl ServiceStarterTrait for IPV6PDService {
-    type Status = DefaultServiceStatus;
     type Config = IPV6PDServiceConfig;
 
-    async fn start(&self, config: IPV6PDServiceConfig) -> DefaultWatchServiceStatus {
-        let service_status = DefaultWatchServiceStatus::new();
+    async fn start(&self, config: IPV6PDServiceConfig) -> WatchService {
+        let service_status = WatchService::new();
         if config.enable {
             let route_service = self.route_service.clone();
             let prefix_map = self.prefix_map.clone();

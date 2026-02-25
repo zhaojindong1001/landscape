@@ -17,7 +17,7 @@ use landscape_common::{
     },
     route::RouteTargetInfo,
     route::{LanRouteInfo, LanRouteMode},
-    service::{DefaultWatchServiceStatus, ServiceStatus},
+    service::{ServiceStatus, WatchService},
     LANDSCAPE_DEFAULE_DHCP_V4_SERVER_PORT, SYSCTL_IPV4_RP_FILTER_PATTERN,
 };
 
@@ -172,7 +172,7 @@ pub async fn dhcp_v4_client(
     iface_name: String,
     mac_addr: MacAddr,
     client_port: u16,
-    service_status: DefaultWatchServiceStatus,
+    service_status: WatchService,
     hostname: String,
     default_router: bool,
     route_service: IpRouteService,

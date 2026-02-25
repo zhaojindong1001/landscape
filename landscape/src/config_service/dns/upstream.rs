@@ -1,6 +1,5 @@
 use landscape_common::{
-    dns::config::DnsUpstreamConfig, event::dns::DnsEvent,
-    service::controller_service_v2::ConfigController,
+    dns::config::DnsUpstreamConfig, event::dns::DnsEvent, service::controller::ConfigController,
 };
 use landscape_database::{
     dns_upstream::repository::DnsUpstreamRepository, provider::LandscapeDBServiceProvider,

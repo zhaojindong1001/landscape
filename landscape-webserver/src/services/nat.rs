@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use axum::extract::{Path, State};
 use landscape_common::api_response::LandscapeApiResp as CommonApiResp;
 use landscape_common::config::nat::NatServiceConfig;
-use landscape_common::service::controller_service_v2::ControllerService;
-use landscape_common::service::{DefaultWatchServiceStatus, ServiceStatus};
+use landscape_common::service::controller::ControllerService;
+use landscape_common::service::{ServiceStatus, WatchService};
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
 
@@ -29,7 +29,7 @@ pub fn get_iface_nat_paths() -> OpenApiRouter<LandscapeApp> {
 )]
 async fn get_all_nat_status(
     State(state): State<LandscapeApp>,
-) -> LandscapeApiResult<HashMap<String, DefaultWatchServiceStatus>> {
+) -> LandscapeApiResult<HashMap<String, WatchService>> {
     LandscapeApiResp::success(state.nat_service.get_all_status().await)
 }
 
@@ -79,6 +79,6 @@ async fn handle_iface_nat_status(
 async fn delete_and_stop_iface_nat(
     State(state): State<LandscapeApp>,
     Path(iface_name): Path<String>,
-) -> LandscapeApiResult<Option<DefaultWatchServiceStatus>> {
+) -> LandscapeApiResult<Option<WatchService>> {
     LandscapeApiResp::success(state.nat_service.delete_and_stop_iface_service(iface_name).await)
 }

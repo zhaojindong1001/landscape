@@ -10,14 +10,11 @@ use landscape_common::lan_services::ipv6_ra::IPv6NAInfo;
 use landscape_common::observer::IfaceObserverAction;
 use landscape_common::route::LanRouteInfo;
 use landscape_common::route::LanRouteMode;
-use landscape_common::service::controller_service_v2::ControllerService;
-use landscape_common::service::service_manager_v2::ServiceManager;
-use landscape_common::service::service_manager_v2::ServiceStarterTrait;
+use landscape_common::service::controller::ControllerService;
+use landscape_common::service::manager::ServiceManager;
+use landscape_common::service::manager::ServiceStarterTrait;
 use landscape_common::store::storev2::LandscapeStore;
-use landscape_common::{
-    config::ra::IPV6RAServiceConfig,
-    service::{DefaultServiceStatus, DefaultWatchServiceStatus},
-};
+use landscape_common::{config::ra::IPV6RAServiceConfig, service::WatchService};
 use landscape_database::provider::LandscapeDBServiceProvider;
 use landscape_database::ra::repository::IPV6RAServiceRepository;
 use tokio::sync::broadcast;
@@ -46,11 +43,10 @@ impl IPV6RAService {
 
 #[async_trait::async_trait]
 impl ServiceStarterTrait for IPV6RAService {
-    type Status = DefaultServiceStatus;
     type Config = IPV6RAServiceConfig;
 
-    async fn start(&self, config: IPV6RAServiceConfig) -> DefaultWatchServiceStatus {
-        let service_status = DefaultWatchServiceStatus::new();
+    async fn start(&self, config: IPV6RAServiceConfig) -> WatchService {
+        let service_status = WatchService::new();
         if config.enable {
             let route_service = self.route_service.clone();
             let prefix_map = self.prefix_map.clone();

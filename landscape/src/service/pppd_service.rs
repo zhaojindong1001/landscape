@@ -15,14 +15,12 @@ use landscape_common::database::LandscapeDBTrait;
 use landscape_common::global_const::default_router::RouteInfo;
 use landscape_common::global_const::default_router::RouteType;
 use landscape_common::global_const::default_router::LD_ALL_ROUTERS;
-use landscape_common::service::controller_service_v2::ControllerService;
-use landscape_common::service::service_manager_v2::ServiceManager;
+use landscape_common::service::controller::ControllerService;
+use landscape_common::service::manager::ServiceManager;
 use landscape_common::service::ServiceStatus;
 use landscape_common::{
     config::ppp::PPPDServiceConfig,
-    service::{
-        service_manager_v2::ServiceStarterTrait, DefaultServiceStatus, DefaultWatchServiceStatus,
-    },
+    service::{manager::ServiceStarterTrait, WatchService},
 };
 use landscape_database::pppd::repository::PPPDServiceRepository;
 use landscape_database::provider::LandscapeDBServiceProvider;
@@ -43,11 +41,10 @@ impl PPPDService {
 
 #[async_trait::async_trait]
 impl ServiceStarterTrait for PPPDService {
-    type Status = DefaultServiceStatus;
     type Config = PPPDServiceConfig;
 
-    async fn start(&self, config: PPPDServiceConfig) -> DefaultWatchServiceStatus {
-        let service_status = DefaultWatchServiceStatus::new();
+    async fn start(&self, config: PPPDServiceConfig) -> WatchService {
+        let service_status = WatchService::new();
         let route_service = self.route_service.clone();
         if config.enable {
             if let Some(_) = get_iface_by_name(&config.attach_iface_name).await {
@@ -76,7 +73,7 @@ pub async fn create_pppd_thread(
     attach_iface_name: String,
     ppp_iface_name: String,
     pppd_conf: PPPDConfig,
-    service_status: DefaultWatchServiceStatus,
+    service_status: WatchService,
     route_service: IpRouteService,
 ) {
     service_status.just_change_status(ServiceStatus::Staring);

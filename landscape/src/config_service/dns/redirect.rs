@@ -1,7 +1,7 @@
 use landscape_common::{
     dns::redirect::DNSRedirectRule,
     event::dns::DnsEvent,
-    service::controller_service_v2::{ConfigController, FlowConfigController},
+    service::controller::{ConfigController, FlowConfigController},
 };
 use landscape_database::{
     dns_redirect::repository::DNSRedirectRuleRepository, provider::LandscapeDBServiceProvider,

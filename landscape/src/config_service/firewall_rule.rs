@@ -1,6 +1,6 @@
 use landscape_common::{
     firewall::{insert_default_firewall_rule, FirewallRuleConfig},
-    service::controller_service_v2::ConfigController,
+    service::controller::ConfigController,
 };
 use landscape_database::{
     firewall_rule::repository::FirewallRuleRepository, provider::LandscapeDBServiceProvider,

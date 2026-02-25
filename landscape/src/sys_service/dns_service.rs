@@ -4,8 +4,8 @@ use landscape_common::{
     event::dns::DnsEvent,
     event::DnsMetricMessage,
     service::{
-        controller_service_v2::{ConfigController, FlowConfigController},
-        DefaultWatchServiceStatus,
+        controller::{ConfigController, FlowConfigController},
+        WatchService,
     },
 };
 use landscape_dns::{server::LandscapeDnsServer, CheckChainDnsResult, CheckDnsReq};
@@ -74,7 +74,7 @@ impl LandscapeDnsService {
         dns_service
     }
 
-    pub async fn get_status(&self) -> DefaultWatchServiceStatus {
+    pub async fn get_status(&self) -> WatchService {
         self.dns_service.status.clone()
     }
 

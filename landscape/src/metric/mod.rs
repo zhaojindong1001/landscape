@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use landscape_common::{
-    service::{DefaultWatchServiceStatus, ServiceStatus},
+    service::{ServiceStatus, WatchService},
     LANDSCAPE_METRIC_DIR_NAME,
 };
 use tokio::sync::oneshot;
@@ -41,7 +41,7 @@ impl MetricData {
 
 #[derive(Clone)]
 pub struct MetricService {
-    pub status: DefaultWatchServiceStatus,
+    pub status: WatchService,
     pub data: MetricData,
 }
 
@@ -53,7 +53,7 @@ impl MetricService {
                 tracing::error!("Failed to create metric directory: {}", e);
             }
         }
-        let status = DefaultWatchServiceStatus::new();
+        let status = WatchService::new();
         MetricService {
             data: MetricData::new(metric_path, config).await,
             status,
@@ -77,10 +77,7 @@ impl MetricService {
     }
 }
 
-pub async fn create_metric_service(
-    metric_service: MetricData,
-    service_status: DefaultWatchServiceStatus,
-) {
+pub async fn create_metric_service(metric_service: MetricData, service_status: WatchService) {
     service_status.just_change_status(ServiceStatus::Staring);
     let (tx, rx) = oneshot::channel::<()>();
     let (other_tx, other_rx) = oneshot::channel::<()>();

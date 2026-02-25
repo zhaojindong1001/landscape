@@ -4,8 +4,8 @@ use axum::extract::{Path, State};
 use landscape_common::api_response::LandscapeApiResp as CommonApiResp;
 use landscape_common::config::ppp::PPPDServiceConfig;
 use landscape_common::database::LandscapeDBTrait;
-use landscape_common::service::controller_service_v2::ControllerService;
-use landscape_common::service::{DefaultWatchServiceStatus, ServiceStatus};
+use landscape_common::service::controller::ControllerService;
+use landscape_common::service::{ServiceStatus, WatchService};
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
 
@@ -46,7 +46,7 @@ async fn get_all_pppd_configs(
 )]
 async fn get_all_pppd_status(
     State(state): State<LandscapeApp>,
-) -> LandscapeApiResult<HashMap<String, DefaultWatchServiceStatus>> {
+) -> LandscapeApiResult<HashMap<String, WatchService>> {
     LandscapeApiResp::success(state.pppd_service.get_all_status().await)
 }
 
@@ -127,6 +127,6 @@ async fn delete_and_stop_iface_pppd_by_attach_iface_name(
 async fn delete_and_stop_iface_pppd(
     State(state): State<LandscapeApp>,
     Path(iface_name): Path<String>,
-) -> LandscapeApiResult<Option<DefaultWatchServiceStatus>> {
+) -> LandscapeApiResult<Option<WatchService>> {
     LandscapeApiResp::success(state.pppd_service.delete_and_stop_iface_service(iface_name).await)
 }

@@ -6,7 +6,7 @@ use landscape_common::database::repository::Repository;
 use landscape_common::database::LandscapeServiceDBTrait;
 use landscape_common::dev::LandscapeInterface;
 pub use landscape_common::iface::{IfaceInfo, IfaceTopology, IfacesInfo, RawIfaceInfo};
-use landscape_common::service::controller_service_v2::ConfigController;
+use landscape_common::service::controller::ConfigController;
 use landscape_common::{
     config::iface::{IfaceCpuSoftBalance, IfaceZoneType, NetworkIfaceConfig, WifiMode},
     error::LdResult,

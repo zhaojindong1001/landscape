@@ -1,13 +1,10 @@
 use landscape_common::database::{LandscapeDBTrait, LandscapeServiceDBTrait};
 use landscape_common::observer::IfaceObserverAction;
-use landscape_common::service::controller_service_v2::ControllerService;
-use landscape_common::service::service_manager_v2::ServiceManager;
+use landscape_common::service::controller::ControllerService;
+use landscape_common::service::manager::ServiceManager;
 use landscape_common::{
     config::nat::{NatConfig, NatServiceConfig},
-    service::{
-        service_manager_v2::ServiceStarterTrait, DefaultServiceStatus, DefaultWatchServiceStatus,
-        ServiceStatus,
-    },
+    service::{manager::ServiceStarterTrait, ServiceStatus, WatchService},
 };
 use landscape_database::nat::repository::NatServiceRepository;
 use landscape_database::provider::LandscapeDBServiceProvider;
@@ -20,11 +17,10 @@ pub struct NatService;
 
 #[async_trait::async_trait]
 impl ServiceStarterTrait for NatService {
-    type Status = DefaultServiceStatus;
     type Config = NatServiceConfig;
 
-    async fn start(&self, config: NatServiceConfig) -> DefaultWatchServiceStatus {
-        let service_status = DefaultWatchServiceStatus::new();
+    async fn start(&self, config: NatServiceConfig) -> WatchService {
+        let service_status = WatchService::new();
         // service_status.just_change_status(ServiceStatus::Staring);
 
         if config.enable {
@@ -53,7 +49,7 @@ pub async fn create_nat_service(
     ifindex: i32,
     has_mac: bool,
     nat_config: NatConfig,
-    service_status: DefaultWatchServiceStatus,
+    service_status: WatchService,
 ) {
     service_status.just_change_status(ServiceStatus::Staring);
     let (tx, rx) = oneshot::channel::<()>();

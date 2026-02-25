@@ -8,7 +8,7 @@ use landscape_common::metric::dns::{
     DnsHistoryQueryParams, DnsHistoryResponse, DnsLightweightSummaryResponse,
     DnsSummaryQueryParams, DnsSummaryResponse,
 };
-use serde_json::Value;
+use landscape_common::service::ServiceStatus;
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
 
@@ -38,10 +38,11 @@ pub fn get_metric_paths() -> OpenApiRouter<LandscapeApp> {
     path = "/status",
     tag = "Metric",
     operation_id = "get_metric_status",
-    responses((status = 200, body = inline(CommonApiResp<serde_json::Value>)))
+    responses((status = 200, body = CommonApiResp<ServiceStatus>))
 )]
-async fn get_metric_status(State(state): State<LandscapeApp>) -> LandscapeApiResult<Value> {
-    LandscapeApiResp::success(serde_json::to_value(&state.metric_service.status).unwrap())
+async fn get_metric_status(State(state): State<LandscapeApp>) -> LandscapeApiResult<ServiceStatus> {
+    let status = state.metric_service.status.0.borrow().clone();
+    LandscapeApiResp::success(status)
 }
 
 #[utoipa::path(

@@ -8,7 +8,7 @@ use std::{
 
 use landscape::{dhcp_client::v4::dhcp_v4_client, iface::get_iface_by_name, route::IpRouteService};
 use landscape_common::{
-    service::{DefaultWatchServiceStatus, ServiceStatus},
+    service::{ServiceStatus, WatchService},
     LANDSCAPE_DEFAULE_DHCP_V4_CLIENT_PORT,
 };
 
@@ -40,7 +40,7 @@ async fn main() {
     })
     .unwrap();
 
-    let service_status = DefaultWatchServiceStatus::new();
+    let service_status = WatchService::new();
 
     let status = service_status.clone();
 

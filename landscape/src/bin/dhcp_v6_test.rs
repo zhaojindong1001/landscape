@@ -11,7 +11,7 @@ use clap::Parser;
 use landscape::{dhcp_client::v6::dhcp_v6_pd_client, iface::get_iface_by_name};
 use landscape_common::{ipv6_pd::IAPrefixMap, route::RouteTargetInfo};
 use landscape_common::{
-    service::{DefaultWatchServiceStatus, ServiceStatus},
+    service::{ServiceStatus, WatchService},
     LANDSCAPE_DEFAULE_DHCP_V6_CLIENT_PORT,
 };
 
@@ -47,7 +47,7 @@ async fn main() {
         return;
     };
 
-    let service_status = DefaultWatchServiceStatus::new();
+    let service_status = WatchService::new();
     let (_, ip_route) = landscape::route::test_used_ip_route().await;
     let status = service_status.clone();
     let prefix_map = IAPrefixMap::new();

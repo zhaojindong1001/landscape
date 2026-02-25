@@ -1,6 +1,6 @@
 use landscape_common::{
     event::dns::DstIpEvent, firewall::blacklist::FirewallBlacklistConfig,
-    service::controller_service_v2::ConfigController,
+    service::controller::ConfigController,
 };
 use landscape_database::{
     firewall_blacklist::repository::FirewallBlacklistRepository,

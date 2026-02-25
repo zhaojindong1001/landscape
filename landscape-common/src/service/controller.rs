@@ -8,8 +8,8 @@ use crate::database::LandscapeFlowTrait;
 use crate::database::LandscapeServiceDBTrait;
 
 use super::{
-    service_code::WatchService,
-    service_manager_v2::{ServiceManager, ServiceStarterTrait},
+    manager::{ServiceManager, ServiceStarterTrait},
+    WatchService,
 };
 
 #[async_trait::async_trait]
@@ -23,9 +23,7 @@ pub trait ControllerService {
     fn get_repository(&self) -> &Self::DatabseAction;
 
     /// 获得所有服务状态
-    async fn get_all_status(
-        &self,
-    ) -> HashMap<String, WatchService<<Self::H as ServiceStarterTrait>::Status>> {
+    async fn get_all_status(&self) -> HashMap<String, WatchService> {
         self.get_service().get_all_status().await
     }
 
@@ -35,10 +33,7 @@ pub trait ControllerService {
         }
     }
 
-    async fn delete_and_stop_iface_service(
-        &self,
-        iface_name: Self::Id,
-    ) -> Option<WatchService<<Self::H as ServiceStarterTrait>::Status>> {
+    async fn delete_and_stop_iface_service(&self, iface_name: Self::Id) -> Option<WatchService> {
         self.get_repository().delete(iface_name.clone()).await.unwrap();
         self.get_service().stop_service(iface_name.to_string()).await
     }
@@ -119,8 +114,3 @@ where
         self.get_repository().find_by_flow_id(id).await.unwrap()
     }
 }
-
-// /// 与 Flow 相关的配置
-// pub trait LandscapeFlowConfig {
-//     fn get_flow_id(&self) -> FlowId;
-// }

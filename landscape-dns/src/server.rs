@@ -7,7 +7,7 @@ use std::{
 use hickory_server::ServerFuture;
 use landscape_common::{
     config::DnsRuntimeConfig, dns::ChainDnsServerInitInfo, event::DnsMetricMessage,
-    service::DefaultWatchServiceStatus,
+    service::WatchService,
 };
 use tokio::sync::{mpsc, Mutex};
 use tokio_util::sync::CancellationToken;
@@ -22,7 +22,7 @@ pub(crate) mod rule;
 
 #[derive(Clone)]
 pub struct LandscapeDnsServer {
-    pub status: DefaultWatchServiceStatus,
+    pub status: WatchService,
     flow_dns_server: Arc<Mutex<HashMap<u32, (DnsRequestHandler, CancellationToken)>>>,
     pub addr: SocketAddr,
     pub msg_tx: Option<mpsc::Sender<DnsMetricMessage>>,
@@ -31,7 +31,7 @@ pub struct LandscapeDnsServer {
 impl LandscapeDnsServer {
     pub fn new(listen_port: u16, msg_tx: Option<mpsc::Sender<DnsMetricMessage>>) -> Self {
         crate::check_resolver_conf();
-        let status = DefaultWatchServiceStatus::new();
+        let status = WatchService::new();
         Self {
             status,
             flow_dns_server: Arc::new(Mutex::new(HashMap::new())),
@@ -40,7 +40,7 @@ impl LandscapeDnsServer {
         }
     }
 
-    pub fn get_status(&self) -> &DefaultWatchServiceStatus {
+    pub fn get_status(&self) -> &WatchService {
         &self.status
     }
 

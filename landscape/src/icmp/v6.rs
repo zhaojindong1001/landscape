@@ -5,7 +5,7 @@ use landscape_common::error::LdResult;
 use landscape_common::ipv6_pd::{IAPrefixMap, LDIAPrefix};
 use landscape_common::lan_services::ipv6_ra::{IPv6NAInfo, IPv6NAInfoItem};
 use landscape_common::route::{LanIPv6RouteKey, LanRouteInfo};
-use landscape_common::service::{DefaultWatchServiceStatus, ServiceStatus};
+use landscape_common::service::{ServiceStatus, WatchService};
 use tokio::net::UdpSocket;
 use tokio::sync::{mpsc, RwLock};
 use tokio::time::Instant;
@@ -73,7 +73,7 @@ pub async fn icmp_ra_server(
     mac_addr: MacAddr,
     // RA 通告要发送的 网卡名称
     iface_name: String,
-    service_status: DefaultWatchServiceStatus,
+    service_status: WatchService,
     lan_info: LanRouteInfo,
     route_service: IpRouteService,
     prefix_map: IAPrefixMap,

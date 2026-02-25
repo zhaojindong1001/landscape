@@ -9,16 +9,14 @@ use landscape_common::dhcp::v4_server::status::ArpScanStatus;
 use landscape_common::dhcp::v4_server::status::DHCPv4OfferInfo;
 use landscape_common::route::LanRouteInfo;
 use landscape_common::route::LanRouteMode;
-use landscape_common::service::controller_service_v2::ControllerService;
-use landscape_common::service::service_code::WatchService;
-use landscape_common::service::DefaultServiceStatus;
-use landscape_common::service::DefaultWatchServiceStatus;
+use landscape_common::service::controller::ControllerService;
+use landscape_common::service::WatchService;
 use landscape_common::store::storev2::LandscapeStore;
 use landscape_common::LAND_ARP_SCAN_INTERVAL;
 use landscape_common::{
     dhcp::v4_server::config::DHCPv4ServiceConfig,
     observer::IfaceObserverAction,
-    service::service_manager_v2::{ServiceManager, ServiceStarterTrait},
+    service::manager::{ServiceManager, ServiceStarterTrait},
 };
 use landscape_database::dhcp_v4_server::repository::DHCPv4ServerRepository;
 use landscape_database::provider::LandscapeDBServiceProvider;
@@ -54,11 +52,10 @@ impl DHCPv4ServerStarter {
 
 #[async_trait::async_trait]
 impl ServiceStarterTrait for DHCPv4ServerStarter {
-    type Status = DefaultServiceStatus;
     type Config = DHCPv4ServiceConfig;
 
-    async fn start(&self, mut config: DHCPv4ServiceConfig) -> DefaultWatchServiceStatus {
-        let service_status = DefaultWatchServiceStatus::new();
+    async fn start(&self, mut config: DHCPv4ServiceConfig) -> WatchService {
+        let service_status = WatchService::new();
 
         if let Some(iface) = get_iface_by_name(&config.iface_name).await {
             // 无论是否启用 DHCP 服务，只要配置存在且接口存在就设置 LAN route
@@ -195,10 +192,7 @@ impl ControllerService for DHCPv4ServerManagerService {
         &self.store
     }
 
-    async fn delete_and_stop_iface_service(
-        &self,
-        iface_name: Self::Id,
-    ) -> Option<WatchService<<Self::H as ServiceStarterTrait>::Status>> {
+    async fn delete_and_stop_iface_service(&self, iface_name: Self::Id) -> Option<WatchService> {
         self.get_repository().delete(iface_name.clone()).await.unwrap();
         let result = self.get_service().stop_service(iface_name.clone()).await;
         self.server_starter.route_service.remove_ipv4_lan_route(&iface_name).await;

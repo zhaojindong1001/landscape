@@ -2,7 +2,7 @@ use landscape_common::{
     error::LdError,
     event::{dns::DnsEvent, route::RouteEvent},
     flow::{config::FlowConfig, FlowEntryMatchMode},
-    service::controller_service_v2::{ConfigController, FlowConfigController},
+    service::controller::{ConfigController, FlowConfigController},
 };
 use landscape_database::{
     flow_rule::repository::FlowConfigRepository, provider::LandscapeDBServiceProvider,

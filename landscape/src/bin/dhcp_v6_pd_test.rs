@@ -19,7 +19,7 @@ use landscape_common::{
     route::{LanRouteInfo, LanRouteMode, RouteTargetInfo},
 };
 use landscape_common::{
-    service::{DefaultWatchServiceStatus, ServiceStatus},
+    service::{ServiceStatus, WatchService},
     LANDSCAPE_DEFAULE_DHCP_V6_CLIENT_PORT,
 };
 use tokio::sync::RwLock;
@@ -55,7 +55,7 @@ async fn main() {
         return;
     };
 
-    let dhcp_service_status = DefaultWatchServiceStatus::new();
+    let dhcp_service_status = WatchService::new();
 
     let config = IPV6RAConfig::new(args.dhcp_client_iface.clone());
 
@@ -91,7 +91,7 @@ async fn main() {
             .await;
         }
     });
-    let icmp_service_status = DefaultWatchServiceStatus::new();
+    let icmp_service_status = WatchService::new();
     let ip_route_service = ip_route.clone();
     let status = icmp_service_status.clone();
     let prefix_map_clone = prefix_map.clone();
