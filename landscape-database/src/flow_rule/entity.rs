@@ -1,7 +1,5 @@
-use landscape_common::{
-    database::{repository::UpdateActiveModel, LandscapeDBFlowFilterExpr},
-    flow::config::FlowConfig,
-};
+use crate::repository::{FlowFilterExpr, UpdateActiveModel};
+use landscape_common::flow::config::FlowConfig;
 use migration::SimpleExpr;
 use sea_orm::{entity::prelude::*, ActiveValue::Set};
 use serde::{Deserialize, Serialize};
@@ -78,7 +76,7 @@ impl UpdateActiveModel<ActiveModel> for FlowConfig {
     }
 }
 
-impl LandscapeDBFlowFilterExpr for FlowConfigModel {
+impl FlowFilterExpr for FlowConfigModel {
     fn get_flow_filter(id: landscape_common::config::FlowId) -> SimpleExpr {
         Column::FlowId.eq(id)
     }

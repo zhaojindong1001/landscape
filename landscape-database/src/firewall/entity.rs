@@ -1,6 +1,5 @@
-use landscape_common::{
-    config::firewall::FirewallServiceConfig, database::repository::UpdateActiveModel,
-};
+use crate::repository::UpdateActiveModel;
+use landscape_common::config::firewall::FirewallServiceConfig;
 use sea_orm::{entity::prelude::*, ActiveValue::Set};
 use serde::{Deserialize, Serialize};
 

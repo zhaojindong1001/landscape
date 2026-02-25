@@ -1,5 +1,5 @@
+use crate::repository::UpdateActiveModel;
 use landscape_common::{
-    database::repository::UpdateActiveModel,
     dhcp::v6_client::config::{IPV6PDConfig, IPV6PDServiceConfig},
     net::MacAddr,
 };

@@ -1,6 +1,7 @@
+use crate::repository::UpdateActiveModel;
 use landscape_common::{
     config::iface::CreateDevType, config::iface::IfaceZoneType, config::iface::NetworkIfaceConfig,
-    config::iface::WifiMode, database::repository::UpdateActiveModel,
+    config::iface::WifiMode,
 };
 use sea_orm::{entity::prelude::*, ActiveValue::Set};
 use serde::{Deserialize, Serialize};

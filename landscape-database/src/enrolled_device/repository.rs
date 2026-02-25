@@ -1,8 +1,4 @@
-use landscape_common::{
-    database::{repository::Repository, LandscapeDBTrait, LandscapeServiceDBTrait},
-    enrolled_device::EnrolledDevice,
-    error::LdError,
-};
+use landscape_common::{enrolled_device::EnrolledDevice, error::LdError};
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use std::net::Ipv4Addr;
 
@@ -21,6 +17,7 @@ impl EnrolledDeviceRepository {
     }
 
     pub async fn find_by_ipv4(&self, ipv4: Ipv4Addr) -> Result<Option<EnrolledDevice>, LdError> {
+        use crate::repository::Repository;
         let ip_u32 = u32::from(ipv4);
         let model =
             EnrolledDeviceEntity::find().filter(Column::Ipv4Int.eq(ip_u32)).one(self.db()).await?;
@@ -28,6 +25,7 @@ impl EnrolledDeviceRepository {
     }
 
     pub async fn find_by_mac(&self, mac: String) -> Result<Option<EnrolledDevice>, String> {
+        use crate::repository::Repository;
         let model = EnrolledDeviceEntity::find()
             .filter(Column::Mac.eq(mac))
             .one(self.db())
@@ -38,6 +36,7 @@ impl EnrolledDeviceRepository {
     }
 
     pub async fn find_by_iface(&self, iface_name: String) -> Result<Vec<EnrolledDevice>, LdError> {
+        use crate::repository::Repository;
         let models = EnrolledDeviceEntity::find()
             .filter(Column::IfaceName.eq(iface_name))
             .all(self.db())
@@ -51,6 +50,7 @@ impl EnrolledDeviceRepository {
         server_ip: Ipv4Addr,
         mask: u8,
     ) -> Result<Vec<EnrolledDevice>, LdError> {
+        use crate::repository::Repository;
         let server_ip_u32 = u32::from(server_ip);
         let mask_u32 = if mask == 0 { 0 } else { 0xFFFFFFFFu32 << (32 - mask) };
         let network_start = server_ip_u32 & mask_u32;
@@ -80,6 +80,7 @@ impl EnrolledDeviceRepository {
         server_ip: std::net::Ipv4Addr,
         mask: u8,
     ) -> Result<Vec<EnrolledDevice>, LdError> {
+        use crate::repository::Repository;
         let server_ip_u32 = u32::from(server_ip);
         let mask_u32 = if mask == 0 { 0 } else { 0xFFFFFFFFu32 << (32 - mask) };
         let network_start = server_ip_u32 & mask_u32;
@@ -101,21 +102,11 @@ impl EnrolledDeviceRepository {
     }
 }
 
-#[async_trait::async_trait]
-impl LandscapeServiceDBTrait for EnrolledDeviceRepository {}
-
-#[async_trait::async_trait]
-impl LandscapeDBTrait for EnrolledDeviceRepository {}
-
-#[async_trait::async_trait]
-impl Repository for EnrolledDeviceRepository {
-    type Model = EnrolledDeviceModel;
-    type Entity = EnrolledDeviceEntity;
-    type ActiveModel = EnrolledDeviceActiveModel;
-    type Data = EnrolledDevice;
-    type Id = DBId;
-
-    fn db(&self) -> &DatabaseConnection {
-        &self.db
-    }
-}
+crate::impl_repository!(
+    EnrolledDeviceRepository,
+    EnrolledDeviceModel,
+    EnrolledDeviceEntity,
+    EnrolledDeviceActiveModel,
+    EnrolledDevice,
+    DBId
+);

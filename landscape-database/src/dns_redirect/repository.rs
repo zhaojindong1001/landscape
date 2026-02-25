@@ -1,23 +1,9 @@
-use landscape_common::{
-    database::{repository::Repository, LandscapeDBTrait, LandscapeFlowTrait},
-    dns::redirect::DNSRedirectRule,
-    // error::LdError,
-};
-// use migration::LockType;
-use sea_orm::{
-    DatabaseConnection,
-    DbErr,
-    EntityTrait,
-    // ActiveModelTrait, ColumnTrait,  IntoActiveModel,
-    // QueryFilter, QuerySelect, TransactionTrait,
-};
+use landscape_common::dns::redirect::DNSRedirectRule;
+use sea_orm::{DatabaseConnection, DbErr, EntityTrait};
 
 use crate::{
     dns_redirect::entity::{
-        // DNSRedirectRuleConfigColumn,
-        DNSRedirectRuleConfigActiveModel,
-        DNSRedirectRuleConfigEntity,
-        DNSRedirectRuleConfigModel,
+        DNSRedirectRuleConfigActiveModel, DNSRedirectRuleConfigEntity, DNSRedirectRuleConfigModel,
     },
     DBId,
 };
@@ -40,21 +26,17 @@ impl DNSRedirectRuleRepository {
     }
 }
 
-#[async_trait::async_trait]
-impl LandscapeDBTrait for DNSRedirectRuleRepository {}
+crate::impl_repository!(
+    DNSRedirectRuleRepository,
+    DNSRedirectRuleConfigModel,
+    DNSRedirectRuleConfigEntity,
+    DNSRedirectRuleConfigActiveModel,
+    DNSRedirectRule,
+    DBId
+);
 
-#[async_trait::async_trait]
-impl LandscapeFlowTrait for DNSRedirectRuleRepository {}
-
-#[async_trait::async_trait]
-impl Repository for DNSRedirectRuleRepository {
-    type Model = DNSRedirectRuleConfigModel;
-    type Entity = DNSRedirectRuleConfigEntity;
-    type ActiveModel = DNSRedirectRuleConfigActiveModel;
-    type Data = DNSRedirectRule;
-    type Id = DBId;
-
-    fn db(&self) -> &DatabaseConnection {
-        &self.db
-    }
-}
+crate::impl_flow_store!(
+    DNSRedirectRuleRepository,
+    DNSRedirectRuleConfigModel,
+    DNSRedirectRuleConfigEntity
+);

@@ -1,7 +1,5 @@
-use landscape_common::{
-    config::ppp::{PPPDConfig, PPPDServiceConfig},
-    database::repository::UpdateActiveModel,
-};
+use crate::repository::UpdateActiveModel;
+use landscape_common::config::ppp::{PPPDConfig, PPPDServiceConfig};
 use sea_orm::{entity::prelude::*, ActiveValue::Set};
 use serde::{Deserialize, Serialize};
 

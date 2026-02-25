@@ -1,7 +1,5 @@
-use landscape_common::{
-    database::{repository::UpdateActiveModel, LandscapeDBFlowFilterExpr},
-    dns::redirect::DNSRedirectRule,
-};
+use crate::repository::{FlowFilterExpr, UpdateActiveModel};
+use landscape_common::dns::redirect::DNSRedirectRule;
 use migration::SimpleExpr;
 use sea_orm::{entity::prelude::*, ActiveValue::Set};
 use serde::{Deserialize, Serialize};
@@ -94,7 +92,7 @@ impl UpdateActiveModel<ActiveModel> for DNSRedirectRule {
     }
 }
 
-impl LandscapeDBFlowFilterExpr for DNSRedirectRuleConfigModel {
+impl FlowFilterExpr for DNSRedirectRuleConfigModel {
     fn get_flow_filter(id: landscape_common::config::FlowId) -> SimpleExpr {
         let search_exp = Expr::cust_with_values(
             "EXISTS (SELECT 1 FROM json_each(apply_flows) WHERE json_each.value = ?)",

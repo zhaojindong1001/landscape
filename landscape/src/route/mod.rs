@@ -11,7 +11,7 @@ use landscape_database::flow_rule::repository::FlowConfigRepository;
 use landscape_ebpf::map_setting::route::{add_lan_route, del_lan_route};
 use tokio::sync::{mpsc, RwLock};
 
-use landscape_common::database::LandscapeDBTrait;
+use landscape_common::database::LandscapeStore;
 
 type ShareRwLock<T> = Arc<RwLock<T>>;
 #[derive(Clone)]

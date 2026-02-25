@@ -3,8 +3,7 @@ use std::net::IpAddr;
 use std::net::Ipv6Addr;
 use std::sync::Arc;
 
-use landscape_common::database::LandscapeDBTrait;
-use landscape_common::database::LandscapeServiceDBTrait;
+use landscape_common::database::LandscapeStore as LandscapeDBStore;
 use landscape_common::ipv6_pd::IAPrefixMap;
 use landscape_common::lan_services::ipv6_ra::IPv6NAInfo;
 use landscape_common::observer::IfaceObserverAction;
@@ -132,7 +131,7 @@ impl IPV6RAManagerService {
                     IfaceObserverAction::Up(iface_name) => {
                         tracing::info!("restart {iface_name} IPv6PD service");
                         let service_config = if let Some(service_config) =
-                            store.find_by_iface_name(iface_name.clone()).await.unwrap()
+                            store.find_by_id(iface_name.clone()).await.unwrap()
                         {
                             service_config
                         } else {

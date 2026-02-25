@@ -1,6 +1,6 @@
 use std::net::IpAddr;
 
-use landscape_common::database::{LandscapeDBTrait, LandscapeServiceDBTrait};
+use landscape_common::database::LandscapeStore;
 use landscape_common::route::{LanRouteInfo, LanRouteMode, RouteTargetInfo};
 use landscape_common::LANDSCAPE_DEFAULE_DHCP_V4_CLIENT_PORT;
 use landscape_common::{
@@ -224,7 +224,7 @@ impl IfaceIpServiceManagerService {
                     IfaceObserverAction::Up(iface_name) => {
                         tracing::info!("restart {iface_name} IfaceIp service");
                         let service_config = if let Some(service_config) =
-                            store.find_by_iface_name(iface_name.clone()).await.unwrap()
+                            store.find_by_id(iface_name.clone()).await.unwrap()
                         {
                             service_config
                         } else {

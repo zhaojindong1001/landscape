@@ -11,7 +11,7 @@ use sysctl::Sysctl as _;
 use tokio::sync::{oneshot, watch};
 
 use landscape_common::config::ppp::PPPDConfig;
-use landscape_common::database::LandscapeDBTrait;
+use landscape_common::database::LandscapeStore;
 use landscape_common::global_const::default_router::RouteInfo;
 use landscape_common::global_const::default_router::RouteType;
 use landscape_common::global_const::default_router::LD_ALL_ROUTERS;

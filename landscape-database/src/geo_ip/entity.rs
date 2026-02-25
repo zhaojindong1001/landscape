@@ -1,4 +1,5 @@
-use landscape_common::{config::geo::GeoIpSourceConfig, database::repository::UpdateActiveModel};
+use crate::repository::UpdateActiveModel;
+use landscape_common::config::geo::GeoIpSourceConfig;
 use sea_orm::{entity::prelude::*, ActiveValue::Set};
 use serde::{Deserialize, Serialize};
 

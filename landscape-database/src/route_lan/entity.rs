@@ -1,6 +1,5 @@
-use landscape_common::{
-    config::route_lan::RouteLanServiceConfig, database::repository::UpdateActiveModel,
-};
+use crate::repository::UpdateActiveModel;
+use landscape_common::config::route_lan::RouteLanServiceConfig;
 use sea_orm::{entity::prelude::*, ActiveValue::Set};
 use serde::{Deserialize, Serialize};
 

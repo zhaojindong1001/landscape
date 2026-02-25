@@ -2,8 +2,6 @@ use std::{collections::HashMap, path::PathBuf};
 
 use config::from_phy_dev;
 use futures::stream::TryStreamExt;
-use landscape_common::database::repository::Repository;
-use landscape_common::database::LandscapeServiceDBTrait;
 use landscape_common::dev::LandscapeInterface;
 pub use landscape_common::iface::{IfaceInfo, IfaceTopology, IfacesInfo, RawIfaceInfo};
 use landscape_common::service::controller::ConfigController;
@@ -14,6 +12,7 @@ use landscape_common::{
 };
 use landscape_database::iface::repository::NetIfaceRepository;
 use landscape_database::provider::LandscapeDBServiceProvider;
+use landscape_database::repository::Repository;
 use rtnetlink::new_connection;
 
 pub mod config;
@@ -253,7 +252,7 @@ impl IfaceManagerService {
 
     pub async fn get_iface_config(&self, key: String) -> Option<NetworkIfaceConfig> {
         let store = self.store_service.iface_store();
-        store.find_by_iface_name(key).await.ok()?
+        store.find_by_id(key).await.ok()?
     }
 
     pub async fn get_all_wan_iface_config(&self) -> Vec<NetworkIfaceConfig> {

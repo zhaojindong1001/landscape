@@ -4,7 +4,7 @@ use landscape_common::config::{
     InitConfig, LandscapeConfig, LandscapeDnsConfig, LandscapeMetricConfig, LandscapeUIConfig,
     RuntimeConfig,
 };
-use landscape_common::database::LandscapeDBTrait;
+use landscape_common::database::LandscapeStore;
 use landscape_common::error::{LdError, LdResult};
 use landscape_database::provider::LandscapeDBServiceProvider;
 use sha2::{Digest, Sha256};

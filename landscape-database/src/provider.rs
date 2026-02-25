@@ -1,9 +1,7 @@
 use std::time::Duration;
 
-use landscape_common::{
-    config::{InitConfig, StoreRuntimeConfig},
-    database::repository::Repository,
-};
+use crate::repository::Repository;
+use landscape_common::config::{InitConfig, StoreRuntimeConfig};
 use sea_orm::{Database, DatabaseConnection};
 
 use migration::{Migrator, MigratorTrait};

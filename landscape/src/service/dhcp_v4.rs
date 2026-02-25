@@ -2,8 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use landscape_common::database::LandscapeDBTrait;
-use landscape_common::database::LandscapeServiceDBTrait;
+use landscape_common::database::LandscapeStore as LandscapeDBStore;
 use landscape_common::dhcp::v4_server::status::ArpScanInfo;
 use landscape_common::dhcp::v4_server::status::ArpScanStatus;
 use landscape_common::dhcp::v4_server::status::DHCPv4OfferInfo;
@@ -218,7 +217,7 @@ impl DHCPv4ServerManagerService {
                     IfaceObserverAction::Up(iface_name) => {
                         tracing::info!("restart {iface_name} Firewall service");
                         let service_config = if let Some(service_config) =
-                            store.find_by_iface_name(iface_name.clone()).await.unwrap()
+                            store.find_by_id(iface_name.clone()).await.unwrap()
                         {
                             service_config
                         } else {

@@ -8,8 +8,7 @@ use landscape_common::route::RouteTargetInfo;
 use landscape_common::service::manager::ServiceStarterTrait;
 use tokio::sync::broadcast;
 
-use landscape_common::database::LandscapeDBTrait;
-use landscape_common::database::LandscapeServiceDBTrait;
+use landscape_common::database::LandscapeStore;
 use landscape_common::{
     dhcp::v6_client::config::IPV6PDServiceConfig,
     observer::IfaceObserverAction,
@@ -119,7 +118,7 @@ impl DHCPv6ClientManagerService {
                     IfaceObserverAction::Up(iface_name) => {
                         tracing::info!("restart {iface_name} IPv6PD service");
                         let service_config = if let Some(service_config) =
-                            store.find_by_iface_name(iface_name.clone()).await.unwrap()
+                            store.find_by_id(iface_name.clone()).await.unwrap()
                         {
                             service_config
                         } else {

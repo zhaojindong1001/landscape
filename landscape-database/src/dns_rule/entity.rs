@@ -1,7 +1,5 @@
-use landscape_common::{
-    config::dns::DNSRuleConfig,
-    database::{repository::UpdateActiveModel, LandscapeDBFlowFilterExpr},
-};
+use crate::repository::{FlowFilterExpr, UpdateActiveModel};
+use landscape_common::config::dns::DNSRuleConfig;
 use migration::SimpleExpr;
 use sea_orm::{entity::prelude::*, ActiveValue::Set};
 use serde::{Deserialize, Serialize};
@@ -91,7 +89,7 @@ impl UpdateActiveModel<ActiveModel> for DNSRuleConfig {
     }
 }
 
-impl LandscapeDBFlowFilterExpr for DNSRuleConfigModel {
+impl FlowFilterExpr for DNSRuleConfigModel {
     fn get_flow_filter(id: landscape_common::config::FlowId) -> SimpleExpr {
         Column::FlowId.eq(id)
     }

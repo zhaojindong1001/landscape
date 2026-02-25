@@ -1,11 +1,7 @@
 use std::collections::HashMap;
 
 use crate::config::FlowId;
-use crate::database::repository::Repository;
-use crate::database::LandscapeDBFlowFilterExpr;
-use crate::database::LandscapeDBTrait;
-use crate::database::LandscapeFlowTrait;
-use crate::database::LandscapeServiceDBTrait;
+use crate::database::{LandscapeFlowStore, LandscapeStore};
 
 use super::{
     manager::{ServiceManager, ServiceStarterTrait},
@@ -16,7 +12,7 @@ use super::{
 pub trait ControllerService {
     type Id: ToString + Clone + Send;
     type Config: Send + Sync + Clone;
-    type DatabseAction: LandscapeServiceDBTrait<Data = Self::Config, Id = Self::Id> + Send;
+    type DatabseAction: LandscapeStore<Data = Self::Config, Id = Self::Id> + Send;
     type H: ServiceStarterTrait<Config = Self::Config>;
 
     fn get_service(&self) -> &ServiceManager<Self::H>;
@@ -39,7 +35,7 @@ pub trait ControllerService {
     }
 
     async fn get_config_by_name(&self, iface_name: Self::Id) -> Option<Self::Config> {
-        self.get_repository().find_by_iface_name(iface_name).await.unwrap()
+        self.get_repository().find_by_id(iface_name).await.unwrap()
     }
 }
 
@@ -47,7 +43,7 @@ pub trait ControllerService {
 pub trait ConfigController {
     type Id: Clone + Send;
     type Config: Send + Sync + Clone;
-    type DatabseAction: LandscapeDBTrait<Data = Self::Config, Id = Self::Id> + Send;
+    type DatabseAction: LandscapeStore<Data = Self::Config, Id = Self::Id> + Send;
 
     fn get_repository(&self) -> &Self::DatabseAction;
 
@@ -107,8 +103,7 @@ pub trait ConfigController {
 #[async_trait::async_trait]
 pub trait FlowConfigController: ConfigController
 where
-    Self::DatabseAction: LandscapeFlowTrait,
-    <<Self as ConfigController>::DatabseAction as Repository>::Model: LandscapeDBFlowFilterExpr,
+    Self::DatabseAction: LandscapeFlowStore,
 {
     async fn list_flow_configs(&self, id: FlowId) -> Vec<Self::Config> {
         self.get_repository().find_by_flow_id(id).await.unwrap()

@@ -1,8 +1,4 @@
-use landscape_common::{
-    config::ppp::PPPDServiceConfig,
-    database::{repository::Repository, LandscapeDBTrait, LandscapeServiceDBTrait},
-    error::LdError,
-};
+use landscape_common::{config::ppp::PPPDServiceConfig, error::LdError};
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 
 use super::entity::{
@@ -14,12 +10,6 @@ pub struct PPPDServiceRepository {
     db: DatabaseConnection,
 }
 
-#[async_trait::async_trait]
-impl LandscapeServiceDBTrait for PPPDServiceRepository {}
-
-#[async_trait::async_trait]
-impl LandscapeDBTrait for PPPDServiceRepository {}
-
 impl PPPDServiceRepository {
     pub fn new(db: DatabaseConnection) -> Self {
         Self { db }
@@ -29,6 +19,7 @@ impl PPPDServiceRepository {
         &self,
         attach_name: String,
     ) -> Result<Vec<PPPDServiceConfig>, LdError> {
+        use crate::repository::Repository;
         let all = PPPDServiceConfigEntity::find()
             .filter(Column::AttachIfaceName.eq(attach_name))
             .all(self.db())
@@ -37,15 +28,11 @@ impl PPPDServiceRepository {
     }
 }
 
-#[async_trait::async_trait]
-impl Repository for PPPDServiceRepository {
-    type Model = PPPDServiceConfigModel;
-    type Entity = PPPDServiceConfigEntity;
-    type ActiveModel = PPPDServiceConfigActiveModel;
-    type Data = PPPDServiceConfig;
-    type Id = String;
-
-    fn db(&self) -> &DatabaseConnection {
-        &self.db
-    }
-}
+crate::impl_repository!(
+    PPPDServiceRepository,
+    PPPDServiceConfigModel,
+    PPPDServiceConfigEntity,
+    PPPDServiceConfigActiveModel,
+    PPPDServiceConfig,
+    String
+);

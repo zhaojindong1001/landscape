@@ -3,7 +3,7 @@ use landscape_common::{
         dns::{DNSRuleConfig, DNSRuntimeRule, DomainConfig, RuleSource},
         geo::{GeoDomainConfig, GeoFileCacheKey, GeoSiteFileConfig, GeoSiteSource},
     },
-    database::LandscapeDBTrait,
+    database::LandscapeStore,
     dns::{
         config::DnsUpstreamConfig,
         redirect::{DNSRedirectRule, DNSRedirectRuntimeRule},

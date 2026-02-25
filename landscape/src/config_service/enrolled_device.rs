@@ -1,7 +1,7 @@
-use landscape_common::database::repository::Repository;
 use landscape_common::enrolled_device::EnrolledDevice;
 use landscape_database::enrolled_device::repository::EnrolledDeviceRepository;
 use landscape_database::provider::LandscapeDBServiceProvider;
+use landscape_database::repository::Repository;
 use uuid::Uuid;
 
 #[derive(Clone)]

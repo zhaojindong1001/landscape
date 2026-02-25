@@ -1,5 +1,5 @@
+use crate::repository::UpdateActiveModel;
 use landscape_common::config::iface_ip::IfaceIpServiceConfig;
-use landscape_common::database::repository::UpdateActiveModel;
 use sea_orm::{entity::prelude::*, ActiveValue::Set};
 use serde::{Deserialize, Serialize};
 

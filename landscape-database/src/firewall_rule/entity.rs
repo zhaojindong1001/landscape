@@ -1,4 +1,5 @@
-use landscape_common::{database::repository::UpdateActiveModel, firewall::FirewallRuleConfig};
+use crate::repository::UpdateActiveModel;
+use landscape_common::firewall::FirewallRuleConfig;
 use sea_orm::{entity::prelude::*, ActiveValue::Set};
 use serde::{Deserialize, Serialize};
 

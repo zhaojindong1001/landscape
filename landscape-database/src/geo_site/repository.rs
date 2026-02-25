@@ -1,8 +1,4 @@
-use landscape_common::{
-    config::geo::GeoSiteSourceConfig,
-    database::{repository::Repository, LandscapeDBTrait},
-    error::LdError,
-};
+use landscape_common::{config::geo::GeoSiteSourceConfig, error::LdError};
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder};
 
 use crate::DBId;
@@ -32,18 +28,11 @@ impl GeoSiteConfigRepository {
     }
 }
 
-#[async_trait::async_trait]
-impl LandscapeDBTrait for GeoSiteConfigRepository {}
-
-#[async_trait::async_trait]
-impl Repository for GeoSiteConfigRepository {
-    type Model = GeoSiteConfigModel;
-    type Entity = GeoSiteConfigEntity;
-    type ActiveModel = GeoSiteConfigActiveModel;
-    type Data = GeoSiteSourceConfig;
-    type Id = DBId;
-
-    fn db(&self) -> &DatabaseConnection {
-        &self.db
-    }
-}
+crate::impl_repository!(
+    GeoSiteConfigRepository,
+    GeoSiteConfigModel,
+    GeoSiteConfigEntity,
+    GeoSiteConfigActiveModel,
+    GeoSiteSourceConfig,
+    DBId
+);

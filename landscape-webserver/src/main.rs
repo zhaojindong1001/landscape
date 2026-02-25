@@ -41,7 +41,6 @@ use landscape::{
     wifi::WifiServiceManagerService,
 };
 use landscape_common::config::route_lan::RouteLanServiceConfig;
-use landscape_common::database::repository::Repository;
 use landscape_common::dhcp::v4_server::config::DHCPv4ServiceConfig;
 use landscape_common::{
     args::{LandscapeAction, LAND_ARGS, LAND_HOME_PATH},
@@ -52,6 +51,7 @@ use landscape_common::{
     VERSION,
 };
 use landscape_database::provider::LandscapeDBServiceProvider;
+use landscape_database::repository::Repository;
 use tokio::sync::mpsc;
 use tower_http::{services::ServeDir, trace::TraceLayer};
 use utoipa_scalar::{Scalar, Servable};

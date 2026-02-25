@@ -1,7 +1,5 @@
-use landscape_common::{
-    database::repository::UpdateActiveModel,
-    dhcp::v4_server::config::{DHCPv4ServerConfig, DHCPv4ServiceConfig},
-};
+use crate::repository::UpdateActiveModel;
+use landscape_common::dhcp::v4_server::config::{DHCPv4ServerConfig, DHCPv4ServiceConfig};
 use sea_orm::{entity::prelude::*, ActiveValue::Set};
 use serde::{Deserialize, Serialize};
 

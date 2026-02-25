@@ -1,4 +1,4 @@
-use landscape_common::database::{repository::UpdateActiveModel, LandscapeDBFlowFilterExpr};
+use crate::repository::{FlowFilterExpr, UpdateActiveModel};
 use landscape_common::ip_mark::WanIpRuleConfig;
 use migration::SimpleExpr;
 use sea_orm::{entity::prelude::*, ActiveValue::Set};
@@ -84,7 +84,7 @@ impl UpdateActiveModel<ActiveModel> for WanIpRuleConfig {
     }
 }
 
-impl LandscapeDBFlowFilterExpr for DstIpRuleConfigModel {
+impl FlowFilterExpr for DstIpRuleConfigModel {
     fn get_flow_filter(id: landscape_common::config::FlowId) -> SimpleExpr {
         Column::FlowId.eq(id)
     }

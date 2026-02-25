@@ -1,6 +1,4 @@
 use landscape_common::config::FlowId;
-use landscape_common::database::LandscapeFlowTrait;
-use landscape_common::database::{repository::Repository, LandscapeDBTrait};
 use landscape_common::error::LdError;
 use landscape_common::flow::config::FlowConfig;
 use landscape_common::flow::{FlowEntryMatchMode, FlowTarget};
@@ -101,21 +99,13 @@ impl FlowConfigRepository {
     }
 }
 
-#[async_trait::async_trait]
-impl LandscapeDBTrait for FlowConfigRepository {}
+crate::impl_repository!(
+    FlowConfigRepository,
+    FlowConfigModel,
+    FlowConfigEntity,
+    FlowConfigActiveModel,
+    FlowConfig,
+    DBId
+);
 
-#[async_trait::async_trait]
-impl LandscapeFlowTrait for FlowConfigRepository {}
-
-#[async_trait::async_trait]
-impl Repository for FlowConfigRepository {
-    type Model = FlowConfigModel;
-    type Entity = FlowConfigEntity;
-    type ActiveModel = FlowConfigActiveModel;
-    type Data = FlowConfig;
-    type Id = DBId;
-
-    fn db(&self) -> &DatabaseConnection {
-        &self.db
-    }
-}
+crate::impl_flow_store!(FlowConfigRepository, FlowConfigModel, FlowConfigEntity);

@@ -1,4 +1,4 @@
-use landscape_common::database::{LandscapeDBTrait, LandscapeServiceDBTrait};
+use landscape_common::database::LandscapeStore;
 use landscape_common::{
     config::mss_clamp::MSSClampServiceConfig,
     observer::IfaceObserverAction,
@@ -111,7 +111,7 @@ impl MssClampServiceManagerService {
                     IfaceObserverAction::Up(iface_name) => {
                         tracing::info!("restart {iface_name} Firewall service");
                         let service_config = if let Some(service_config) =
-                            store.find_by_iface_name(iface_name.clone()).await.unwrap()
+                            store.find_by_id(iface_name.clone()).await.unwrap()
                         {
                             service_config
                         } else {
