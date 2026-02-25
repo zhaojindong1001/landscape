@@ -4,6 +4,7 @@ use std::net::Ipv6Addr;
 use serde::{Deserialize, Serialize};
 
 use crate::database::repository::LandscapeDBStore;
+use crate::service::ServiceConfigError;
 use crate::store::storev2::LandscapeStore;
 use crate::utils::time::get_f64_timestamp;
 
@@ -78,7 +79,7 @@ pub struct IPV6RAConfig {
 }
 
 impl IPV6RAConfig {
-    pub fn validate(&self) -> Result<(), String> {
+    pub fn validate(&self) -> Result<(), ServiceConfigError> {
         let mut base_prefixes = HashSet::<Ipv6Addr>::new();
         let mut depend_ifaces = HashSet::<String>::new();
         let mut sub_indices = HashSet::<u32>::new();
@@ -87,26 +88,34 @@ impl IPV6RAConfig {
             match src {
                 IPV6RaConfigSource::Static(cfg) => {
                     if !base_prefixes.insert(cfg.base_prefix) {
-                        return Err(format!("Duplicate base_prefix found: {}", cfg.base_prefix));
+                        return Err(ServiceConfigError::InvalidConfig {
+                            reason: format!("Duplicate base_prefix found: {}", cfg.base_prefix),
+                        });
                     }
 
                     if !sub_indices.insert(cfg.sub_index) {
-                        return Err(format!(
-                            "Duplicate sub_index/subnet_index found: {}",
-                            cfg.sub_index
-                        ));
+                        return Err(ServiceConfigError::InvalidConfig {
+                            reason: format!(
+                                "Duplicate sub_index/subnet_index found: {}",
+                                cfg.sub_index
+                            ),
+                        });
                     }
                 }
                 IPV6RaConfigSource::Pd(cfg) => {
                     if !depend_ifaces.insert(cfg.depend_iface.clone()) {
-                        return Err(format!("Duplicate depend_iface found: {}", cfg.depend_iface));
+                        return Err(ServiceConfigError::InvalidConfig {
+                            reason: format!("Duplicate depend_iface found: {}", cfg.depend_iface),
+                        });
                     }
 
                     if !sub_indices.insert(cfg.subnet_index) {
-                        return Err(format!(
-                            "Duplicate sub_index/subnet_index found: {}",
-                            cfg.subnet_index
-                        ));
+                        return Err(ServiceConfigError::InvalidConfig {
+                            reason: format!(
+                                "Duplicate sub_index/subnet_index found: {}",
+                                cfg.subnet_index
+                            ),
+                        });
                     }
                 }
             }

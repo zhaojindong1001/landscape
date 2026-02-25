@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::database::repository::LandscapeDBStore;
+use crate::service::ServiceConfigError;
 use crate::store::storev2::LandscapeStore;
 use crate::utils::time::get_f64_timestamp;
 
@@ -25,6 +26,22 @@ impl LandscapeStore for WifiServiceConfig {
 impl LandscapeDBStore<String> for WifiServiceConfig {
     fn get_id(&self) -> String {
         self.iface_name.clone()
+    }
+}
+
+impl WifiServiceConfig {
+    pub fn validate(&self) -> Result<(), ServiceConfigError> {
+        if self.enable && self.config.trim().is_empty() {
+            return Err(ServiceConfigError::InvalidConfig {
+                reason: "config must not be empty when enabled".to_string(),
+            });
+        }
+        if self.config.len() > 8192 {
+            return Err(ServiceConfigError::InvalidConfig {
+                reason: format!("config length ({}) exceeds 8192", self.config.len()),
+            });
+        }
+        Ok(())
     }
 }
 

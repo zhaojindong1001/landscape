@@ -132,6 +132,7 @@ async fn handle_service_config(
     JsonBody(config): JsonBody<DHCPv4ServiceConfig>,
 ) -> LandscapeApiResult<()> {
     state.validate_zone(&config).await?;
+    config.config.validate()?;
     if let Err(conflict_msg) = state.dhcp_v4_server_service.check_ip_range_conflict(&config).await {
         return Err(DhcpError::IpConflict(conflict_msg))?;
     }

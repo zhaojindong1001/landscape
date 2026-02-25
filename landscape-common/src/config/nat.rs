@@ -6,6 +6,7 @@ use uuid::Uuid;
 
 use crate::config::ConfigId;
 use crate::database::repository::LandscapeDBStore;
+use crate::service::ServiceConfigError;
 use crate::store::storev2::LandscapeStore;
 use crate::utils::id::gen_database_uuid;
 use crate::utils::time::get_f64_timestamp;
@@ -66,6 +67,32 @@ pub struct NatConfig {
     pub icmp_in_range: Range<u16>,
 }
 
+impl NatConfig {
+    fn validate_range(name: &str, range: &Range<u16>) -> Result<(), ServiceConfigError> {
+        if range.start == 0 {
+            return Err(ServiceConfigError::InvalidConfig {
+                reason: format!("{name} start port must be > 0"),
+            });
+        }
+        if range.start >= range.end {
+            return Err(ServiceConfigError::InvalidConfig {
+                reason: format!(
+                    "{name} start ({}) must be less than end ({})",
+                    range.start, range.end
+                ),
+            });
+        }
+        Ok(())
+    }
+
+    pub fn validate(&self) -> Result<(), ServiceConfigError> {
+        Self::validate_range("tcp_range", &self.tcp_range)?;
+        Self::validate_range("udp_range", &self.udp_range)?;
+        Self::validate_range("icmp_in_range", &self.icmp_in_range)?;
+        Ok(())
+    }
+}
+
 impl Default for NatConfig {
     fn default() -> Self {
         Self {
@@ -109,6 +136,45 @@ pub struct StaticNatMappingConfig {
 }
 
 impl StaticNatMappingConfig {
+    pub fn validate(&self) -> Result<(), ServiceConfigError> {
+        if self.enable && self.mapping_pair_ports.is_empty() {
+            return Err(ServiceConfigError::InvalidConfig {
+                reason: "mapping_pair_ports must not be empty when enabled".to_string(),
+            });
+        }
+
+        for (i, pair) in self.mapping_pair_ports.iter().enumerate() {
+            if pair.wan_port == 0 {
+                return Err(ServiceConfigError::InvalidConfig {
+                    reason: format!("mapping_pair_ports[{i}].wan_port must not be 0"),
+                });
+            }
+            if pair.lan_port == 0 {
+                return Err(ServiceConfigError::InvalidConfig {
+                    reason: format!("mapping_pair_ports[{i}].lan_port must not be 0"),
+                });
+            }
+        }
+
+        // L4 protocol: only TCP (6) or UDP (17) allowed
+        for (i, &proto) in self.ipv4_l4_protocol.iter().enumerate() {
+            if proto != 6 && proto != 17 {
+                return Err(ServiceConfigError::InvalidConfig {
+                    reason: format!("ipv4_l4_protocol[{i}] ({proto}) must be 6 (TCP) or 17 (UDP)"),
+                });
+            }
+        }
+        for (i, &proto) in self.ipv6_l4_protocol.iter().enumerate() {
+            if proto != 6 && proto != 17 {
+                return Err(ServiceConfigError::InvalidConfig {
+                    reason: format!("ipv6_l4_protocol[{i}] ({proto}) must be 6 (TCP) or 17 (UDP)"),
+                });
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn convert_to_item(&self) -> Vec<StaticNatMappingItem> {
         let mut result = Vec::with_capacity(4);
         for l4_protocol in self.ipv4_l4_protocol.iter() {

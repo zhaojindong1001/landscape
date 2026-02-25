@@ -64,6 +64,9 @@ async fn add_many_static_nat_mappings(
     State(state): State<LandscapeApp>,
     JsonBody(static_nat_mappings): JsonBody<Vec<StaticNatMappingConfig>>,
 ) -> LandscapeApiResult<()> {
+    for m in &static_nat_mappings {
+        m.validate()?;
+    }
     state.static_nat_mapping_config_service.set_list(static_nat_mappings).await;
     LandscapeApiResp::success(())
 }
@@ -79,6 +82,7 @@ async fn add_static_nat_mappings(
     State(state): State<LandscapeApp>,
     JsonBody(static_nat_mapping): JsonBody<StaticNatMappingConfig>,
 ) -> LandscapeApiResult<StaticNatMappingConfig> {
+    static_nat_mapping.validate()?;
     let result = state.static_nat_mapping_config_service.set(static_nat_mapping).await;
     LandscapeApiResp::success(result)
 }

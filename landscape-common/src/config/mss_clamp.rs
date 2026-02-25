@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::database::repository::LandscapeDBStore;
+use crate::service::ServiceConfigError;
 use crate::store::storev2::LandscapeStore;
 use crate::utils::time::get_f64_timestamp;
 
@@ -39,6 +40,17 @@ impl super::iface::ZoneAwareConfig for MSSClampServiceConfig {
     }
     fn service_kind() -> super::iface::ServiceKind {
         super::iface::ServiceKind::MssClamp
+    }
+}
+
+impl MSSClampServiceConfig {
+    pub fn validate(&self) -> Result<(), ServiceConfigError> {
+        if self.clamp_size < 536 || self.clamp_size > 1500 {
+            return Err(ServiceConfigError::InvalidConfig {
+                reason: format!("clamp_size ({}) must be between 536 and 1500", self.clamp_size),
+            });
+        }
+        Ok(())
     }
 }
 

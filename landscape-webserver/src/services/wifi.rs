@@ -69,6 +69,7 @@ async fn handle_service_config(
     JsonBody(config): JsonBody<WifiServiceConfig>,
 ) -> LandscapeApiResult<()> {
     state.validate_zone(&config).await?;
+    config.validate()?;
     state.wifi_service.handle_service_config(config).await;
     LandscapeApiResp::success(())
 }

@@ -69,6 +69,7 @@ async fn handle_service_config(
     JsonBody(config): JsonBody<MSSClampServiceConfig>,
 ) -> LandscapeApiResult<()> {
     state.validate_zone(&config).await?;
+    config.validate()?;
     state.mss_clamp_service.handle_service_config(config).await;
     LandscapeApiResp::success(())
 }

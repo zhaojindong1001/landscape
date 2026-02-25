@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::database::repository::LandscapeDBStore;
 use crate::net::MacAddr;
+use crate::service::ServiceConfigError;
 use crate::store::storev2::LandscapeStore;
 use crate::utils::time::get_f64_timestamp;
 use crate::LANDSCAPE_DEFAULT_LAN_NAME;
@@ -94,6 +95,108 @@ pub struct DHCPv4ServerConfig {
 }
 
 impl DHCPv4ServerConfig {
+    pub fn validate(&self) -> Result<(), ServiceConfigError> {
+        // mask must be 1-30 (0/31/32 cannot form a usable address pool)
+        if self.network_mask == 0 || self.network_mask > 30 {
+            return Err(ServiceConfigError::InvalidConfig {
+                reason: format!("network_mask ({}) must be between 1 and 30", self.network_mask),
+            });
+        }
+
+        let mask_bits = 0xFFFFFFFFu32 << (32 - self.network_mask);
+        let server_u32 = u32::from(self.server_ip_addr);
+        let network = server_u32 & mask_bits;
+        let broadcast = network | !mask_bits;
+
+        // usable host: in subnet, not network address, not broadcast
+        let is_usable_host = |ip: Ipv4Addr| -> bool {
+            let ip_u32 = u32::from(ip);
+            ip_u32 & mask_bits == network && ip_u32 != network && ip_u32 != broadcast
+        };
+
+        // server_ip must be a usable host in the subnet
+        if !is_usable_host(self.server_ip_addr) {
+            return Err(ServiceConfigError::InvalidConfig {
+                reason: format!(
+                    "server_ip_addr ({}) is not a usable host in the /{} subnet",
+                    self.server_ip_addr, self.network_mask
+                ),
+            });
+        }
+
+        // ip_range_start must be a usable host and not equal to server_ip
+        if !is_usable_host(self.ip_range_start) {
+            return Err(ServiceConfigError::InvalidConfig {
+                reason: format!(
+                    "ip_range_start ({}) is not in the /{} subnet",
+                    self.ip_range_start, self.network_mask
+                ),
+            });
+        }
+        if self.ip_range_start == self.server_ip_addr {
+            return Err(ServiceConfigError::InvalidConfig {
+                reason: format!(
+                    "ip_range_start ({}) must not equal server_ip_addr",
+                    self.ip_range_start
+                ),
+            });
+        }
+
+        // ip_range_end is exclusive (not included), so broadcast is a valid
+        // boundary — it means the last assigned address is broadcast-1.
+        // We only reject: out-of-subnet, network address, and < start.
+        if let Some(end) = self.ip_range_end {
+            let end_u32 = u32::from(end);
+            if end_u32 & mask_bits != network || end_u32 == network {
+                return Err(ServiceConfigError::InvalidConfig {
+                    reason: format!(
+                        "ip_range_end ({}) is not in the /{} subnet",
+                        end, self.network_mask
+                    ),
+                });
+            }
+            if end_u32 < u32::from(self.ip_range_start) {
+                return Err(ServiceConfigError::InvalidConfig {
+                    reason: format!(
+                        "ip_range_end ({}) must be >= ip_range_start ({})",
+                        end, self.ip_range_start
+                    ),
+                });
+            }
+        }
+
+        // address_lease_time (if set) must be > 0
+        if let Some(lease) = self.address_lease_time {
+            if lease == 0 {
+                return Err(ServiceConfigError::InvalidConfig {
+                    reason: "address_lease_time must be > 0".to_string(),
+                });
+            }
+        }
+
+        // mac_binding_records: each IP must be in subnet and not equal to server_ip
+        for (i, record) in self.mac_binding_records.iter().enumerate() {
+            if !is_usable_host(record.ip) {
+                return Err(ServiceConfigError::InvalidConfig {
+                    reason: format!(
+                        "mac_binding_records[{}] ip ({}) is not in the /{} subnet",
+                        i, record.ip, self.network_mask
+                    ),
+                });
+            }
+            if record.ip == self.server_ip_addr {
+                return Err(ServiceConfigError::InvalidConfig {
+                    reason: format!(
+                        "mac_binding_records[{}] ip ({}) must not equal server_ip_addr",
+                        i, record.ip
+                    ),
+                });
+            }
+        }
+
+        Ok(())
+    }
+
     /// 获取IP范围的起始和结束地址
     pub fn get_ip_range(&self) -> (Ipv4Addr, Ipv4Addr) {
         let start = self.ip_range_start;

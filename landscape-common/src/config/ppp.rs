@@ -4,6 +4,7 @@ use std::{fs::OpenOptions, io::Write};
 use serde::{Deserialize, Serialize};
 
 use crate::database::repository::LandscapeDBStore;
+use crate::service::ServiceConfigError;
 use crate::store::storev2::LandscapeStore;
 use crate::utils::time::get_f64_timestamp;
 
@@ -53,6 +54,35 @@ pub struct PPPDConfig {
 }
 
 impl PPPDConfig {
+    pub fn validate(&self) -> Result<(), ServiceConfigError> {
+        fn check(field: &str, val: &str, allow_empty: bool) -> Result<(), ServiceConfigError> {
+            if !allow_empty && val.is_empty() {
+                return Err(ServiceConfigError::InvalidConfig {
+                    reason: format!("{field} must not be empty"),
+                });
+            }
+            if val.len() > 256 {
+                return Err(ServiceConfigError::InvalidConfig {
+                    reason: format!("{field} exceeds 256 chars"),
+                });
+            }
+            if val.contains('\n') || val.contains('\r') || val.contains('"') {
+                return Err(ServiceConfigError::InvalidConfig {
+                    reason: format!("{field} contains forbidden characters"),
+                });
+            }
+            Ok(())
+        }
+        check("peer_id", &self.peer_id, false)?;
+        check("password", &self.password, false)?;
+        if let Some(ac) = &self.ac {
+            if !ac.trim().is_empty() {
+                check("ac", ac, true)?;
+            }
+        }
+        Ok(())
+    }
+
     pub fn delete_config(&self, ppp_iface_name: &str) {
         let _ = std::fs::remove_file(format!("/etc/ppp/peers/{}", ppp_iface_name));
     }

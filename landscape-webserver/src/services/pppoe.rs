@@ -99,6 +99,7 @@ async fn handle_iface_pppd_config(
     JsonBody(config): JsonBody<PPPDServiceConfig>,
 ) -> LandscapeApiResult<()> {
     state.validate_zone(&config).await?;
+    config.pppd_config.validate()?;
     state.pppd_service.handle_service_config(config).await;
     LandscapeApiResp::success(())
 }

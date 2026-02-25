@@ -24,6 +24,10 @@ pub enum ServiceConfigError {
     #[error("Interface '{iface_name}' not found")]
     #[api_error(id = "service.iface_not_found", status = 404)]
     IfaceNotFound { iface_name: String },
+
+    #[error("Invalid service config: {reason}")]
+    #[api_error(id = "service.invalid_config", status = 422)]
+    InvalidConfig { reason: String },
 }
 
 #[derive(Serialize, Debug, PartialEq, Clone, Default)]
