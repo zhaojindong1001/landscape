@@ -89,7 +89,7 @@ impl LandscapeDnsService {
     }
 
     pub async fn stop(&self) {
-        // self.dns_service.stop();
+        landscape_dns::restore_resolver_conf();
     }
 
     pub async fn check_domain(&self, req: CheckDnsReq) -> CheckChainDnsResult {

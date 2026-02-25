@@ -68,6 +68,22 @@ fn check_resolver_conf() {
     std::fs::write(&resolver_file, new_content).unwrap();
 }
 
+/// 停止时恢复 /etc/resolv.conf
+pub fn restore_resolver_conf() {
+    let resolver_file = PathBuf::from(RESOLVER_CONF);
+    let resolver_file_back = PathBuf::from(RESOLVER_CONF_LD_BACK);
+
+    if resolver_file_back.exists() {
+        if let Err(e) = std::fs::rename(&resolver_file_back, &resolver_file) {
+            tracing::error!("restore {resolver_file:?} from backup error: {e}");
+        } else {
+            tracing::info!("restored {resolver_file:?} from backup");
+        }
+    } else {
+        tracing::warn!("no backup file found at {resolver_file_back:?}, skipping restore");
+    }
+}
+
 pub fn convert_record_type(record_type: LandscapeDnsRecordType) -> RecordType {
     match record_type {
         LandscapeDnsRecordType::A => RecordType::A,

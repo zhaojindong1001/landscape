@@ -1,6 +1,7 @@
 use std::{
     mem::MaybeUninit,
     net::{IpAddr, Ipv4Addr, Ipv6Addr},
+    path::Path,
 };
 
 use landscape_common::{
@@ -10,8 +11,23 @@ use landscape_common::{
 };
 use libbpf_rs::{
     skel::{OpenSkel, SkelBuilder},
-    MapCore, MapFlags,
+    MapCore, MapFlags, OpenMapMut,
 };
+
+/// Try to reuse a pinned map. If the pinned map is incompatible (e.g. struct
+/// layout changed), remove the stale pin file so `load()` creates a fresh one.
+pub fn reuse_pinned_map_or_recreate(map: &mut OpenMapMut, path: &(impl AsRef<Path> + ?Sized)) {
+    map.set_pin_path(path).unwrap();
+    if path.as_ref().exists() {
+        if let Err(e) = map.reuse_pinned_map(path) {
+            tracing::warn!(
+                "Pinned map {} incompatible, will recreate: {e}",
+                path.as_ref().display()
+            );
+            let _ = std::fs::remove_file(path);
+        }
+    }
+}
 
 pub(crate) mod share_map {
     include!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/bpf_rs/share_map.skel.rs"));
@@ -40,53 +56,82 @@ pub(crate) fn init_path(paths: &LandscapeMapPath) {
     let mut open_object = MaybeUninit::uninit();
     let mut landscape_open = landscape_builder.open(&mut open_object).unwrap();
 
-    landscape_open.maps.wan_ip_binding.set_pin_path(&paths.wan_ip).unwrap();
+    reuse_pinned_map_or_recreate(&mut landscape_open.maps.wan_ip_binding, &paths.wan_ip);
     // NAT
-    landscape_open.maps.nat6_static_mappings.set_pin_path(&paths.nat6_static_mappings).unwrap();
-    landscape_open.maps.nat4_mappings.set_pin_path(&paths.nat4_mappings).unwrap();
-    landscape_open.maps.nat4_mapping_timer.set_pin_path(&paths.nat4_mapping_timer).unwrap();
+    reuse_pinned_map_or_recreate(
+        &mut landscape_open.maps.nat6_static_mappings,
+        &paths.nat6_static_mappings,
+    );
+    reuse_pinned_map_or_recreate(&mut landscape_open.maps.nat4_mappings, &paths.nat4_mappings);
+    reuse_pinned_map_or_recreate(
+        &mut landscape_open.maps.nat4_mapping_timer,
+        &paths.nat4_mapping_timer,
+    );
 
     // firewall
-    landscape_open.maps.firewall_block_ip4_map.set_pin_path(&paths.firewall_ipv4_block).unwrap();
-    landscape_open.maps.firewall_block_ip6_map.set_pin_path(&paths.firewall_ipv6_block).unwrap();
-    landscape_open
-        .maps
-        .firewall_allow_rules_map
-        .set_pin_path(&paths.firewall_allow_rules_map)
-        .unwrap();
-    landscape_open.maps.flow_match_map.set_pin_path(&paths.flow_match_map).unwrap();
-    landscape_open.maps.dns_flow_socks.set_pin_path(&paths.dns_flow_socks).unwrap();
+    reuse_pinned_map_or_recreate(
+        &mut landscape_open.maps.firewall_block_ip4_map,
+        &paths.firewall_ipv4_block,
+    );
+    reuse_pinned_map_or_recreate(
+        &mut landscape_open.maps.firewall_block_ip6_map,
+        &paths.firewall_ipv6_block,
+    );
+    reuse_pinned_map_or_recreate(
+        &mut landscape_open.maps.firewall_allow_rules_map,
+        &paths.firewall_allow_rules_map,
+    );
+    reuse_pinned_map_or_recreate(&mut landscape_open.maps.flow_match_map, &paths.flow_match_map);
+    reuse_pinned_map_or_recreate(&mut landscape_open.maps.dns_flow_socks, &paths.dns_flow_socks);
 
     // metric
-    landscape_open.maps.metric_bucket_map.set_pin_path(&paths.metric_map).unwrap();
-    landscape_open.maps.nat_conn_metric_events.set_pin_path(&paths.nat_conn_metric_events).unwrap();
-
-    landscape_open
-        .maps
-        .firewall_conn_metric_events
-        .set_pin_path(&paths.firewall_conn_metric_events)
-        .unwrap();
+    reuse_pinned_map_or_recreate(&mut landscape_open.maps.metric_bucket_map, &paths.metric_map);
+    reuse_pinned_map_or_recreate(
+        &mut landscape_open.maps.nat_conn_metric_events,
+        &paths.nat_conn_metric_events,
+    );
+    reuse_pinned_map_or_recreate(
+        &mut landscape_open.maps.firewall_conn_metric_events,
+        &paths.firewall_conn_metric_events,
+    );
 
     // flow verdict and forward
-    landscape_open.maps.rt4_lan_map.set_pin_path(&paths.rt4_lan_map).unwrap();
-    landscape_open.maps.rt4_target_map.set_pin_path(&paths.rt4_target_map).unwrap();
-    landscape_open.maps.flow4_dns_map.set_pin_path(&paths.flow4_dns_map).unwrap();
-    landscape_open.maps.flow4_ip_map.set_pin_path(&paths.flow4_ip_map).unwrap();
+    reuse_pinned_map_or_recreate(&mut landscape_open.maps.rt4_lan_map, &paths.rt4_lan_map);
+    reuse_pinned_map_or_recreate(&mut landscape_open.maps.rt4_target_map, &paths.rt4_target_map);
+    reuse_pinned_map_or_recreate(&mut landscape_open.maps.flow4_dns_map, &paths.flow4_dns_map);
+    reuse_pinned_map_or_recreate(&mut landscape_open.maps.flow4_ip_map, &paths.flow4_ip_map);
 
-    landscape_open.maps.rt6_lan_map.set_pin_path(&paths.rt6_lan_map).unwrap();
-    landscape_open.maps.rt6_target_map.set_pin_path(&paths.rt6_target_map).unwrap();
-    landscape_open.maps.flow6_dns_map.set_pin_path(&paths.flow6_dns_map).unwrap();
-    landscape_open.maps.flow6_ip_map.set_pin_path(&paths.flow6_ip_map).unwrap();
+    reuse_pinned_map_or_recreate(&mut landscape_open.maps.rt6_lan_map, &paths.rt6_lan_map);
+    reuse_pinned_map_or_recreate(&mut landscape_open.maps.rt6_target_map, &paths.rt6_target_map);
+    reuse_pinned_map_or_recreate(&mut landscape_open.maps.flow6_dns_map, &paths.flow6_dns_map);
+    reuse_pinned_map_or_recreate(&mut landscape_open.maps.flow6_ip_map, &paths.flow6_ip_map);
 
-    landscape_open.maps.rt4_cache_map.set_pin_path(&paths.rt4_cache_map).unwrap();
-    landscape_open.maps.rt6_cache_map.set_pin_path(&paths.rt6_cache_map).unwrap();
+    reuse_pinned_map_or_recreate(&mut landscape_open.maps.rt4_cache_map, &paths.rt4_cache_map);
+    reuse_pinned_map_or_recreate(&mut landscape_open.maps.rt6_cache_map, &paths.rt6_cache_map);
 
-    landscape_open.maps.ip_mac_v4.set_pin_path(&paths.ip_mac_v4).unwrap();
-    landscape_open.maps.ip_mac_v6.set_pin_path(&paths.ip_mac_v6).unwrap();
+    reuse_pinned_map_or_recreate(&mut landscape_open.maps.ip_mac_v4, &paths.ip_mac_v4);
+    reuse_pinned_map_or_recreate(&mut landscape_open.maps.ip_mac_v6, &paths.ip_mac_v6);
 
     let _landscape_skel = landscape_open.load().unwrap();
     route::cache::init_route_wan_cache_inner_map(paths);
     route::cache::init_route_lan_cache_inner_map(paths);
+}
+
+/// Unpin shared maps during full app shutdown so the kernel can free them.
+///
+/// Must be called after all services have stopped.
+pub fn cleanup_pinned_maps() {
+    let maps_to_unpin = [
+        // nat4_mapping_timer contains bpf_timer entries whose callbacks hold
+        // refcounts on nat_v4 programs, preventing kernel cleanup.
+        &MAP_PATHS.nat4_mapping_timer,
+    ];
+    for path in maps_to_unpin {
+        match std::fs::remove_file(path) {
+            Ok(()) => tracing::info!("Unpinned map: {}", path.display()),
+            Err(e) => tracing::warn!("Failed to unpin {}: {e}", path.display()),
+        }
+    }
 }
 
 pub fn add_ipv6_wan_ip(

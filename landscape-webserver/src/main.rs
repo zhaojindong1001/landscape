@@ -1,4 +1,4 @@
-use std::{collections::HashMap, net::SocketAddr, path::PathBuf, sync::Arc};
+use std::{collections::HashMap, net::SocketAddr, path::PathBuf, sync::Arc, time::Duration};
 
 use axum::{
     handler::HandlerWithoutStateExt, http::StatusCode, response::IntoResponse, routing::get, Router,
@@ -150,6 +150,51 @@ impl LandscapeApp {
         self.ipv6_ra_service.delete_and_stop_iface_service(iface_name.to_string()).await;
         self.route_lan_service.delete_and_stop_iface_service(iface_name.to_string()).await;
         self.pppd_service.stop_pppds_by_attach_iface_name(iface_name.to_string()).await;
+    }
+
+    pub async fn shutdown(&self) {
+        tracing::info!("Shutting down all services...");
+
+        if cfg!(debug_assertions) {
+            tracing::info!("Debug mode: keeping WAN IP and DHCP v4 services alive");
+            tokio::join!(
+                self.mss_clamp_service.get_service().stop_all(),
+                self.firewall_service.get_service().stop_all(),
+                self.nat_service.get_service().stop_all(),
+                self.route_wan_service.get_service().stop_all(),
+                self.route_lan_service.get_service().stop_all(),
+                self.ipv6_pd_service.get_service().stop_all(),
+                self.ipv6_ra_service.get_service().stop_all(),
+                self.pppd_service.get_service().stop_all(),
+                self.wifi_service.get_service().stop_all(),
+            );
+        } else {
+            tokio::join!(
+                self.mss_clamp_service.get_service().stop_all(),
+                self.firewall_service.get_service().stop_all(),
+                self.nat_service.get_service().stop_all(),
+                self.route_wan_service.get_service().stop_all(),
+                self.route_lan_service.get_service().stop_all(),
+                self.dhcp_v4_server_service.get_service().stop_all(),
+                self.ipv6_pd_service.get_service().stop_all(),
+                self.ipv6_ra_service.get_service().stop_all(),
+                self.wan_ip_service.get_service().stop_all(),
+                self.pppd_service.get_service().stop_all(),
+                self.wifi_service.get_service().stop_all(),
+            );
+        }
+        tracing::info!("All service managers stopped");
+
+        landscape_ebpf::map_setting::cleanup_pinned_maps();
+
+        self.metric_service.stop_service().await;
+        tracing::info!("Metric service stopped");
+
+        self.ebpf_service.stop().await;
+        tracing::info!("eBPF system service stopped");
+
+        self.dns_service.stop().await;
+        tracing::info!("DNS resolver conf restored");
     }
 }
 
@@ -447,12 +492,32 @@ async fn run(home_path: PathBuf, config: RuntimeConfig) -> LdResult<()> {
         .fallback_service(serve_dir)
         .layer(TraceLayer::new_for_http());
 
-    axum_server::bind_rustls(addr, RustlsConfig::from_config(tls_config.into()))
-        .serve(app.into_make_service())
-        .await
-        .unwrap();
+    let server_handle = axum_server::Handle::new();
+    let server = axum_server::bind_rustls(addr, RustlsConfig::from_config(tls_config.into()))
+        .handle(server_handle.clone())
+        .serve(app.into_make_service());
 
-    // axum::serve(listener, app.layer(TraceLayer::new_for_http())).await.unwrap();
+    tokio::select! {
+        result = server => {
+            if let Err(e) = result {
+                tracing::error!("Server error: {e:?}");
+            }
+        }
+        _ = shutdown_signal() => {
+            tracing::info!("Initiating graceful shutdown...");
+        }
+    }
+
+    server_handle.graceful_shutdown(Some(Duration::from_secs(10)));
+
+    let shutdown_timeout = Duration::from_secs(30);
+    tracing::info!("Stopping all services ({}s timeout)...", shutdown_timeout.as_secs());
+    match tokio::time::timeout(shutdown_timeout, landscape_app_status.shutdown()).await {
+        Ok(()) => tracing::info!("All services stopped successfully."),
+        Err(_) => tracing::warn!("Shutdown timed out, some hooks may remain."),
+    }
+
+    tracing::info!("Landscape Router shutdown complete.");
     Ok(())
 }
 
@@ -562,6 +627,11 @@ async fn do_auto_init(home_path: &PathBuf, config: &RuntimeConfig) -> LdResult<(
         "Auto init: bridge, IP, DHCP and Route services configuration saved to database."
     );
     Ok(())
+}
+
+async fn shutdown_signal() {
+    tokio::signal::ctrl_c().await.expect("failed to install Ctrl+C handler");
+    tracing::info!("Received Ctrl+C signal");
 }
 
 /// NOT Found

@@ -123,4 +123,23 @@ impl<H: ServiceStarterTrait> ServiceManager<H> {
             None
         }
     }
+
+    pub async fn stop_all(&self) {
+        let entries: Vec<(String, WatchService<H::Status>)> = {
+            let mut write_lock = self.services.write().await;
+            write_lock.drain().map(|(key, (status, _sender))| (key, status)).collect()
+        };
+
+        let mut handles = Vec::with_capacity(entries.len());
+        for (name, status) in entries {
+            handles.push(tokio::spawn(async move {
+                tracing::info!("Stopping service: {}", name);
+                status.wait_stop().await;
+                tracing::info!("Service stopped: {}", name);
+            }));
+        }
+        for handle in handles {
+            let _ = handle.await;
+        }
+    }
 }
