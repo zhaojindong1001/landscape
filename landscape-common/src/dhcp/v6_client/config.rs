@@ -35,3 +35,15 @@ impl LandscapeStore for IPV6PDServiceConfig {
         self.iface_name.clone()
     }
 }
+
+impl crate::config::iface::ZoneAwareConfig for IPV6PDServiceConfig {
+    fn iface_name(&self) -> &str {
+        &self.iface_name
+    }
+    fn zone_requirement() -> crate::config::iface::ZoneRequirement {
+        crate::config::iface::ZoneRequirement::WanOrPpp
+    }
+    fn service_kind() -> crate::config::iface::ServiceKind {
+        crate::config::iface::ServiceKind::Ipv6Pd
+    }
+}

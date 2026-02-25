@@ -139,6 +139,66 @@ pub struct LandscapeApp {
 }
 
 impl LandscapeApp {
+    pub(crate) async fn validate_zone<C: landscape_common::config::iface::ZoneAwareConfig>(
+        &self,
+        config: &C,
+    ) -> Result<(), landscape_common::service::ServiceConfigError> {
+        use landscape_common::config::iface::{IfaceZoneType, ZoneRequirement};
+        use landscape_common::service::ServiceConfigError;
+
+        let iface_name = config.iface_name();
+        let requirement = C::zone_requirement();
+
+        // WanOrPpp: check if this is a PPP device first
+        if matches!(requirement, ZoneRequirement::WanOrPpp) {
+            if let Some(ppp_config) =
+                self.pppd_service.get_config_by_name(iface_name.to_string()).await
+            {
+                // PPP service exists for this interface, verify the attached interface exists
+                if self
+                    .iface_config_service
+                    .get_iface_config(ppp_config.attach_iface_name)
+                    .await
+                    .is_some()
+                {
+                    return Ok(()); // Valid PPP device, skip zone check
+                }
+            }
+        }
+
+        // docker0 special case: allow LanOnly services
+        if iface_name == "docker0" && matches!(requirement, ZoneRequirement::LanOnly) {
+            return Ok(());
+        }
+
+        // Regular zone check
+        let iface_config =
+            self.iface_config_service.get_iface_config(iface_name.to_string()).await.ok_or_else(
+                || ServiceConfigError::IfaceNotFound { iface_name: iface_name.to_string() },
+            )?;
+
+        let allowed = match requirement {
+            ZoneRequirement::WanOnly | ZoneRequirement::WanOrPpp => {
+                matches!(iface_config.zone_type, IfaceZoneType::Wan)
+            }
+            ZoneRequirement::LanOnly => {
+                matches!(iface_config.zone_type, IfaceZoneType::Lan)
+            }
+            ZoneRequirement::WanOrLan => {
+                matches!(iface_config.zone_type, IfaceZoneType::Wan | IfaceZoneType::Lan)
+            }
+        };
+
+        if allowed {
+            Ok(())
+        } else {
+            Err(ServiceConfigError::ZoneMismatch {
+                service_name: C::service_kind(),
+                iface_name: iface_name.to_string(),
+            })
+        }
+    }
+
     pub(crate) async fn remove_all_iface_service(&self, iface_name: &str) {
         self.mss_clamp_service.delete_and_stop_iface_service(iface_name.to_string()).await;
         self.wan_ip_service.delete_and_stop_iface_service(iface_name.to_string()).await;

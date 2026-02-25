@@ -179,3 +179,15 @@ impl LandscapeStore for IPV6RAServiceConfig {
         self.iface_name.clone()
     }
 }
+
+impl super::iface::ZoneAwareConfig for IPV6RAServiceConfig {
+    fn iface_name(&self) -> &str {
+        &self.iface_name
+    }
+    fn zone_requirement() -> super::iface::ZoneRequirement {
+        super::iface::ZoneRequirement::LanOnly
+    }
+    fn service_kind() -> super::iface::ServiceKind {
+        super::iface::ServiceKind::Icmpv6Ra
+    }
+}

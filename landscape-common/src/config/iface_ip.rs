@@ -32,6 +32,18 @@ impl LandscapeDBStore<String> for IfaceIpServiceConfig {
     }
 }
 
+impl super::iface::ZoneAwareConfig for IfaceIpServiceConfig {
+    fn iface_name(&self) -> &str {
+        &self.iface_name
+    }
+    fn zone_requirement() -> super::iface::ZoneRequirement {
+        super::iface::ZoneRequirement::WanOnly
+    }
+    fn service_kind() -> super::iface::ServiceKind {
+        super::iface::ServiceKind::IpConfig
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(tag = "t")]

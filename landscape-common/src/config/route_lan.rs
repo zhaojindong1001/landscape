@@ -32,6 +32,18 @@ impl LandscapeDBStore<String> for RouteLanServiceConfig {
     }
 }
 
+impl super::iface::ZoneAwareConfig for RouteLanServiceConfig {
+    fn iface_name(&self) -> &str {
+        &self.iface_name
+    }
+    fn zone_requirement() -> super::iface::ZoneRequirement {
+        super::iface::ZoneRequirement::LanOnly
+    }
+    fn service_kind() -> super::iface::ServiceKind {
+        super::iface::ServiceKind::RouteLan
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct StaticRouteConfig {

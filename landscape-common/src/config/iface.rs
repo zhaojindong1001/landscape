@@ -126,3 +126,54 @@ pub struct IfaceCpuSoftBalance {
     pub xps: String,
     pub rps: String,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ZoneRequirement {
+    WanOnly,
+    LanOnly,
+    WanOrLan,
+    /// WAN interface or PPP device (verified by querying pppd service)
+    WanOrPpp,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ServiceKind {
+    IpConfig,
+    #[serde(rename = "pppoe")]
+    PPPoE,
+    #[serde(rename = "nat")]
+    NAT,
+    Firewall,
+    MssClamp,
+    Ipv6Pd,
+    RouteWan,
+    DhcpV4,
+    Icmpv6Ra,
+    RouteLan,
+    WiFi,
+}
+
+impl std::fmt::Display for ServiceKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::IpConfig => write!(f, "IP Config"),
+            Self::PPPoE => write!(f, "PPPoE"),
+            Self::NAT => write!(f, "NAT"),
+            Self::Firewall => write!(f, "Firewall"),
+            Self::MssClamp => write!(f, "MSS Clamp"),
+            Self::Ipv6Pd => write!(f, "IPv6 PD"),
+            Self::RouteWan => write!(f, "Route WAN"),
+            Self::DhcpV4 => write!(f, "DHCPv4"),
+            Self::Icmpv6Ra => write!(f, "ICMPv6 RA"),
+            Self::RouteLan => write!(f, "Route LAN"),
+            Self::WiFi => write!(f, "WiFi"),
+        }
+    }
+}
+
+pub trait ZoneAwareConfig {
+    fn iface_name(&self) -> &str;
+    fn zone_requirement() -> ZoneRequirement;
+    fn service_kind() -> ServiceKind;
+}

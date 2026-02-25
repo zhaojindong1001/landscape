@@ -30,6 +30,18 @@ impl LandscapeDBStore<String> for MSSClampServiceConfig {
     }
 }
 
+impl super::iface::ZoneAwareConfig for MSSClampServiceConfig {
+    fn iface_name(&self) -> &str {
+        &self.iface_name
+    }
+    fn zone_requirement() -> super::iface::ZoneRequirement {
+        super::iface::ZoneRequirement::WanOrPpp
+    }
+    fn service_kind() -> super::iface::ServiceKind {
+        super::iface::ServiceKind::MssClamp
+    }
+}
+
 /// PPPoE: 1500 - 8 = 1492
 const fn default_clamp_size() -> u16 {
     1492

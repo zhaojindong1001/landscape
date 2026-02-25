@@ -25,3 +25,15 @@ impl LandscapeDBStore<String> for FirewallServiceConfig {
         self.iface_name.clone()
     }
 }
+
+impl super::iface::ZoneAwareConfig for FirewallServiceConfig {
+    fn iface_name(&self) -> &str {
+        &self.iface_name
+    }
+    fn zone_requirement() -> super::iface::ZoneRequirement {
+        super::iface::ZoneRequirement::WanOrPpp
+    }
+    fn service_kind() -> super::iface::ServiceKind {
+        super::iface::ServiceKind::Firewall
+    }
+}

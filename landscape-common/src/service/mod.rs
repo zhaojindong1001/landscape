@@ -14,6 +14,16 @@ pub enum ServiceConfigError {
     #[error("{service_name} service config not found")]
     #[api_error(id = "service.config_not_found", status = 404)]
     NotFound { service_name: &'static str },
+
+    #[error(
+        "Service '{service_name}' cannot be configured on interface '{iface_name}': zone mismatch"
+    )]
+    #[api_error(id = "service.zone_mismatch", status = 422)]
+    ZoneMismatch { service_name: crate::config::iface::ServiceKind, iface_name: String },
+
+    #[error("Interface '{iface_name}' not found")]
+    #[api_error(id = "service.iface_not_found", status = 404)]
+    IfaceNotFound { iface_name: String },
 }
 
 #[derive(Serialize, Debug, PartialEq, Clone, Default)]

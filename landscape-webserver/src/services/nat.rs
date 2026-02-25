@@ -65,6 +65,7 @@ async fn handle_iface_nat_status(
     State(state): State<LandscapeApp>,
     JsonBody(config): JsonBody<NatServiceConfig>,
 ) -> LandscapeApiResult<()> {
+    state.validate_zone(&config).await?;
     state.nat_service.handle_service_config(config).await;
     LandscapeApiResp::success(())
 }

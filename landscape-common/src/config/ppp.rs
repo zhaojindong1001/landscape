@@ -31,6 +31,18 @@ impl LandscapeDBStore<String> for PPPDServiceConfig {
     }
 }
 
+impl super::iface::ZoneAwareConfig for PPPDServiceConfig {
+    fn iface_name(&self) -> &str {
+        &self.attach_iface_name
+    }
+    fn zone_requirement() -> super::iface::ZoneRequirement {
+        super::iface::ZoneRequirement::WanOnly
+    }
+    fn service_kind() -> super::iface::ServiceKind {
+        super::iface::ServiceKind::PPPoE
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct PPPDConfig {

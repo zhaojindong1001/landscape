@@ -27,3 +27,15 @@ impl LandscapeDBStore<String> for WifiServiceConfig {
         self.iface_name.clone()
     }
 }
+
+impl super::iface::ZoneAwareConfig for WifiServiceConfig {
+    fn iface_name(&self) -> &str {
+        &self.iface_name
+    }
+    fn zone_requirement() -> super::iface::ZoneRequirement {
+        super::iface::ZoneRequirement::WanOrLan
+    }
+    fn service_kind() -> super::iface::ServiceKind {
+        super::iface::ServiceKind::WiFi
+    }
+}

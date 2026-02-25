@@ -99,6 +99,7 @@ async fn handle_iface_icmpv6(
     State(state): State<LandscapeApp>,
     JsonBody(config): JsonBody<IPV6RAServiceConfig>,
 ) -> LandscapeApiResult<()> {
+    state.validate_zone(&config).await?;
     state.ipv6_ra_service.handle_service_config(config).await;
     LandscapeApiResp::success(())
 }

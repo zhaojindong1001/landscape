@@ -43,6 +43,18 @@ impl LandscapeDBStore<String> for NatServiceConfig {
     }
 }
 
+impl super::iface::ZoneAwareConfig for NatServiceConfig {
+    fn iface_name(&self) -> &str {
+        &self.iface_name
+    }
+    fn zone_requirement() -> super::iface::ZoneRequirement {
+        super::iface::ZoneRequirement::WanOrPpp
+    }
+    fn service_kind() -> super::iface::ServiceKind {
+        super::iface::ServiceKind::NAT
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct NatConfig {

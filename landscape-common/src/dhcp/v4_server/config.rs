@@ -50,6 +50,18 @@ impl LandscapeDBStore<String> for DHCPv4ServiceConfig {
     }
 }
 
+impl crate::config::iface::ZoneAwareConfig for DHCPv4ServiceConfig {
+    fn iface_name(&self) -> &str {
+        &self.iface_name
+    }
+    fn zone_requirement() -> crate::config::iface::ZoneRequirement {
+        crate::config::iface::ZoneRequirement::LanOnly
+    }
+    fn service_kind() -> crate::config::iface::ServiceKind {
+        crate::config::iface::ServiceKind::DhcpV4
+    }
+}
+
 /// DHCP Server IPv4 Config
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
