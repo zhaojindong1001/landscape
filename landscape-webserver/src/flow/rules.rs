@@ -109,7 +109,7 @@ async fn add_flow_rule(
         }
     }
 
-    let result = state.flow_rule_service.set(flow_rule).await;
+    let result = state.flow_rule_service.checked_set(flow_rule).await?;
     LandscapeApiResp::success(result)
 }
 

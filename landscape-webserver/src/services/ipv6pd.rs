@@ -81,7 +81,7 @@ async fn handle_iface_pd(
     JsonBody(config): JsonBody<IPV6PDServiceConfig>,
 ) -> LandscapeApiResult<()> {
     state.validate_zone(&config).await?;
-    state.ipv6_pd_service.handle_service_config(config).await;
+    state.ipv6_pd_service.handle_service_config(config).await?;
     LandscapeApiResp::success(())
 }
 

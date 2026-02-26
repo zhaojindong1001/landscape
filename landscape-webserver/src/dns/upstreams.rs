@@ -65,7 +65,7 @@ async fn add_many_dns_upstreams(
     State(state): State<LandscapeApp>,
     JsonBody(dns_upstreams): JsonBody<Vec<DnsUpstreamConfig>>,
 ) -> LandscapeApiResult<()> {
-    state.dns_upstream_service.set_list(dns_upstreams).await;
+    state.dns_upstream_service.checked_set_list(dns_upstreams).await?;
     LandscapeApiResp::success(())
 }
 
@@ -80,7 +80,7 @@ async fn add_dns_upstream(
     State(state): State<LandscapeApp>,
     JsonBody(dns_upstream): JsonBody<DnsUpstreamConfig>,
 ) -> LandscapeApiResult<DnsUpstreamConfig> {
-    let result = state.dns_upstream_service.set(dns_upstream).await;
+    let result = state.dns_upstream_service.checked_set(dns_upstream).await?;
     LandscapeApiResp::success(result)
 }
 

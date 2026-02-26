@@ -65,7 +65,7 @@ async fn add_many_dns_redirects(
     State(state): State<LandscapeApp>,
     JsonBody(dns_redirects): JsonBody<Vec<DNSRedirectRule>>,
 ) -> LandscapeApiResult<()> {
-    state.dns_redirect_service.set_list(dns_redirects).await;
+    state.dns_redirect_service.checked_set_list(dns_redirects).await?;
     LandscapeApiResp::success(())
 }
 
@@ -80,7 +80,7 @@ async fn add_dns_redirects(
     State(state): State<LandscapeApp>,
     JsonBody(dns_redirect): JsonBody<DNSRedirectRule>,
 ) -> LandscapeApiResult<DNSRedirectRule> {
-    let result = state.dns_redirect_service.set(dns_redirect).await;
+    let result = state.dns_redirect_service.checked_set(dns_redirect).await?;
     LandscapeApiResp::success(result)
 }
 

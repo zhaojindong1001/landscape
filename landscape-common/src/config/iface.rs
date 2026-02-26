@@ -50,6 +50,12 @@ impl LandscapeDBStore<String> for NetworkIfaceConfig {
     fn get_id(&self) -> String {
         self.name.clone()
     }
+    fn get_update_at(&self) -> f64 {
+        self.update_at
+    }
+    fn set_update_at(&mut self, ts: f64) {
+        self.update_at = ts;
+    }
 }
 
 fn yes() -> bool {

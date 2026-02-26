@@ -161,7 +161,7 @@ async fn add_geo_site(
     State(state): State<LandscapeApp>,
     JsonBody(dns_rule): JsonBody<GeoSiteSourceConfig>,
 ) -> LandscapeApiResult<GeoSiteSourceConfig> {
-    let result = state.geo_site_service.set(dns_rule).await;
+    let result = state.geo_site_service.checked_set(dns_rule).await?;
     LandscapeApiResp::success(result)
 }
 
@@ -176,7 +176,7 @@ async fn add_many_geo_sites(
     State(state): State<LandscapeApp>,
     JsonBody(rules): JsonBody<Vec<GeoSiteSourceConfig>>,
 ) -> LandscapeApiResult<()> {
-    state.geo_site_service.set_list(rules).await;
+    state.geo_site_service.checked_set_list(rules).await?;
     LandscapeApiResp::success(())
 }
 

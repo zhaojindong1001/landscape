@@ -86,6 +86,45 @@ where
         Ok(())
     }
 
+    /// 只读冲突检查：比较 incoming_update_at 和数据库中的 update_at
+    #[allow(dead_code)]
+    async fn check_conflict_by_id(
+        &self,
+        id: Self::Id,
+        incoming_update_at: f64,
+    ) -> Result<Option<Self::Data>, LdError> {
+        if let Some(existing) = self.find_by_id(id).await? {
+            if (existing.get_update_at() - incoming_update_at).abs() > f64::EPSILON {
+                return Err(LdError::ConfigConflict);
+            }
+            Ok(Some(existing))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// 乐观锁 set：检查 update_at，刷新时间戳，写入
+    #[allow(dead_code)]
+    async fn checked_set_or_update_model(
+        &self,
+        id: Self::Id,
+        mut config: Self::Data,
+    ) -> Result<Self::Data, LdError> {
+        if let Some(existing) = self.find_by_id(id).await? {
+            if (existing.get_update_at() - config.get_update_at()).abs() > f64::EPSILON {
+                return Err(LdError::ConfigConflict);
+            }
+            config.set_update_at(landscape_common::utils::time::get_f64_timestamp());
+            let mut active: Self::ActiveModel = existing.into();
+            config.update(&mut active);
+            Ok(active.update(self.db()).await?.into())
+        } else {
+            config.set_update_at(landscape_common::utils::time::get_f64_timestamp());
+            let active_model: Self::ActiveModel = config.into();
+            Ok(active_model.insert(self.db()).await?.into())
+        }
+    }
+
     #[allow(dead_code)]
     async fn set_or_update_model(
         &self,

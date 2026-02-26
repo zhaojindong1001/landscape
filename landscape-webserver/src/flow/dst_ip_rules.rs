@@ -84,7 +84,7 @@ async fn modify_dst_ip_rules(
     Path(_id): Path<ConfigId>,
     JsonBody(rule): JsonBody<WanIpRuleConfig>,
 ) -> LandscapeApiResult<WanIpRuleConfig> {
-    let result = state.dst_ip_rule_service.set(rule).await;
+    let result = state.dst_ip_rule_service.checked_set(rule).await?;
     LandscapeApiResp::success(result)
 }
 
@@ -99,7 +99,7 @@ async fn add_dst_ip_rules(
     State(state): State<LandscapeApp>,
     JsonBody(rule): JsonBody<WanIpRuleConfig>,
 ) -> LandscapeApiResult<WanIpRuleConfig> {
-    let result = state.dst_ip_rule_service.set(rule).await;
+    let result = state.dst_ip_rule_service.checked_set(rule).await?;
     LandscapeApiResp::success(result)
 }
 
@@ -114,7 +114,7 @@ async fn add_many_dst_ip_rules(
     State(state): State<LandscapeApp>,
     JsonBody(rules): JsonBody<Vec<WanIpRuleConfig>>,
 ) -> LandscapeApiResult<()> {
-    state.dst_ip_rule_service.set_list(rules).await;
+    state.dst_ip_rule_service.checked_set_list(rules).await?;
     LandscapeApiResp::success(())
 }
 

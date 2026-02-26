@@ -64,6 +64,12 @@ impl LandscapeDBStore<Uuid> for EnrolledDevice {
     fn get_id(&self) -> Uuid {
         self.id
     }
+    fn get_update_at(&self) -> f64 {
+        self.update_at
+    }
+    fn set_update_at(&mut self, ts: f64) {
+        self.update_at = ts;
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

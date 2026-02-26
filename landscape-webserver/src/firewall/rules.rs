@@ -65,7 +65,7 @@ async fn add_firewall_rule(
     State(state): State<LandscapeApp>,
     JsonBody(firewall_rule): JsonBody<FirewallRuleConfig>,
 ) -> LandscapeApiResult<FirewallRuleConfig> {
-    let result = state.fire_wall_rule_service.set(firewall_rule).await;
+    let result = state.fire_wall_rule_service.checked_set(firewall_rule).await?;
     LandscapeApiResp::success(result)
 }
 

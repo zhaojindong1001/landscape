@@ -7,12 +7,14 @@ export class PPPDServiceConfig {
   iface_name: string;
   enable: boolean;
   pppd_config: PPPDConfig;
+  update_at?: number;
 
   constructor(obj: {
     attach_iface_name: string;
     iface_name?: string;
     enable?: boolean;
     pppd_config?: PPPDConfig;
+    update_at?: number;
   }) {
     let date_str = (new Date().getTime() % ADAY).toString(36);
     this.attach_iface_name = obj.attach_iface_name;
@@ -26,5 +28,6 @@ export class PPPDServiceConfig {
       password: obj.pppd_config?.password ?? "",
       ac: obj.pppd_config?.ac ?? null,
     };
+    this.update_at = obj?.update_at;
   }
 }

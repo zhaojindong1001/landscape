@@ -5,15 +5,18 @@ export class DHCPv4ServiceConfig {
   iface_name: string;
   enable: boolean;
   config: DHCPv4ServerConfig;
+  update_at?: number;
 
   constructor(obj?: {
     iface_name: string;
     enable?: boolean;
     config?: DHCPv4ServerConfig;
+    update_at?: number;
   }) {
     this.iface_name = obj?.iface_name ?? "";
     this.enable = obj?.enable ?? true;
     this.config = new DHCPv4ServerConfig(obj?.config);
+    this.update_at = obj?.update_at;
   }
 }
 

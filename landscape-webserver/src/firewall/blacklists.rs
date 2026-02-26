@@ -64,7 +64,7 @@ async fn add_firewall_blacklist(
     State(state): State<LandscapeApp>,
     JsonBody(config): JsonBody<FirewallBlacklistConfig>,
 ) -> LandscapeApiResult<FirewallBlacklistConfig> {
-    let result = state.firewall_blacklist_service.set(config).await;
+    let result = state.firewall_blacklist_service.checked_set(config).await?;
     LandscapeApiResp::success(result)
 }
 

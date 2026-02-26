@@ -82,7 +82,7 @@ async fn add_many_dns_rules(
     State(state): State<LandscapeApp>,
     JsonBody(dns_rules): JsonBody<Vec<DNSRuleConfig>>,
 ) -> LandscapeApiResult<()> {
-    state.dns_rule_service.set_list(dns_rules).await;
+    state.dns_rule_service.checked_set_list(dns_rules).await?;
     LandscapeApiResp::success(())
 }
 
@@ -97,7 +97,7 @@ async fn add_dns_rules(
     State(state): State<LandscapeApp>,
     JsonBody(dns_rule): JsonBody<DNSRuleConfig>,
 ) -> LandscapeApiResult<DNSRuleConfig> {
-    let result = state.dns_rule_service.set(dns_rule).await;
+    let result = state.dns_rule_service.checked_set(dns_rule).await?;
     LandscapeApiResp::success(result)
 }
 

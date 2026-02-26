@@ -87,6 +87,22 @@ macro_rules! impl_repository {
                 use crate::repository::Repository;
                 Repository::find_by_ids(self, ids).await
             }
+            async fn check_conflict(
+                &self,
+                config: &Self::Data,
+            ) -> Result<Option<Self::Data>, landscape_common::error::LdError> {
+                use crate::repository::Repository;
+                use landscape_common::database::repository::LandscapeDBStore;
+                self.check_conflict_by_id(config.get_id(), config.get_update_at()).await
+            }
+            async fn checked_set(
+                &self,
+                config: Self::Data,
+            ) -> Result<Self::Data, landscape_common::error::LdError> {
+                use crate::repository::Repository;
+                use landscape_common::database::repository::LandscapeDBStore;
+                self.checked_set_or_update_model(config.get_id(), config).await
+            }
         }
     };
 }

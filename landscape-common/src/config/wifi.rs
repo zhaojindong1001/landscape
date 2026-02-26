@@ -27,6 +27,12 @@ impl LandscapeDBStore<String> for WifiServiceConfig {
     fn get_id(&self) -> String {
         self.iface_name.clone()
     }
+    fn get_update_at(&self) -> f64 {
+        self.update_at
+    }
+    fn set_update_at(&mut self, ts: f64) {
+        self.update_at = ts;
+    }
 }
 
 impl WifiServiceConfig {

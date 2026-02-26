@@ -13,6 +13,15 @@ pub trait LandscapeStore: Send + Sync {
     async fn delete(&self, id: Self::Id) -> Result<(), LdError>;
     async fn find_by_id(&self, id: Self::Id) -> Result<Option<Self::Data>, LdError>;
     async fn find_by_ids(&self, ids: Vec<Self::Id>) -> Vec<Self::Data>;
+
+    /// 只读冲突检查。
+    /// - 记录不存在 → Ok(None)
+    /// - 记录存在且 update_at 匹配 → Ok(Some(旧配置))
+    /// - 记录存在但 update_at 不匹配 → Err(ConfigConflict)
+    async fn check_conflict(&self, config: &Self::Data) -> Result<Option<Self::Data>, LdError>;
+
+    /// 乐观锁 set：检查 update_at + 刷新时间戳 + 写入
+    async fn checked_set(&self, config: Self::Data) -> Result<Self::Data, LdError>;
 }
 
 /// 支持 Flow 查询的存储接口

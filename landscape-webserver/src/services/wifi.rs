@@ -70,7 +70,7 @@ async fn handle_service_config(
 ) -> LandscapeApiResult<()> {
     state.validate_zone(&config).await?;
     config.validate()?;
-    state.wifi_service.handle_service_config(config).await;
+    state.wifi_service.handle_service_config(config).await?;
     LandscapeApiResp::success(())
 }
 

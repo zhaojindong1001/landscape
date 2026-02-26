@@ -87,6 +87,12 @@ impl LandscapeDBStore<Uuid> for GeoSiteSourceConfig {
     fn get_id(&self) -> Uuid {
         self.id.unwrap_or(Uuid::new_v4())
     }
+    fn get_update_at(&self) -> f64 {
+        self.update_at
+    }
+    fn set_update_at(&mut self, ts: f64) {
+        self.update_at = ts;
+    }
 }
 
 /// 存储在 file cache 中
@@ -195,6 +201,12 @@ pub struct GeoIpDirectItem {
 impl LandscapeDBStore<Uuid> for GeoIpSourceConfig {
     fn get_id(&self) -> Uuid {
         self.id.unwrap_or(Uuid::new_v4())
+    }
+    fn get_update_at(&self) -> f64 {
+        self.update_at
+    }
+    fn set_update_at(&mut self, ts: f64) {
+        self.update_at = ts;
     }
 }
 

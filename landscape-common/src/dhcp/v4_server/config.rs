@@ -49,6 +49,12 @@ impl LandscapeDBStore<String> for DHCPv4ServiceConfig {
     fn get_id(&self) -> String {
         self.iface_name.clone()
     }
+    fn get_update_at(&self) -> f64 {
+        self.update_at
+    }
+    fn set_update_at(&mut self, ts: f64) {
+        self.update_at = ts;
+    }
 }
 
 impl crate::config::iface::ZoneAwareConfig for DHCPv4ServiceConfig {

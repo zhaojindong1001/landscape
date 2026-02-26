@@ -160,7 +160,7 @@ async fn add_geo_ip(
     State(state): State<LandscapeApp>,
     JsonBody(dns_rule): JsonBody<GeoIpSourceConfig>,
 ) -> LandscapeApiResult<GeoIpSourceConfig> {
-    let result = state.geo_ip_service.set(dns_rule).await;
+    let result = state.geo_ip_service.checked_set(dns_rule).await?;
     LandscapeApiResp::success(result)
 }
 
@@ -175,7 +175,7 @@ async fn add_many_geo_ips(
     State(state): State<LandscapeApp>,
     JsonBody(rules): JsonBody<Vec<GeoIpSourceConfig>>,
 ) -> LandscapeApiResult<()> {
-    state.geo_ip_service.set_list(rules).await;
+    state.geo_ip_service.checked_set_list(rules).await?;
     LandscapeApiResp::success(())
 }
 

@@ -137,7 +137,7 @@ async fn handle_service_config(
         return Err(DhcpError::IpConflict(conflict_msg))?;
     }
 
-    state.dhcp_v4_server_service.handle_service_config(config).await;
+    state.dhcp_v4_server_service.handle_service_config(config).await?;
     LandscapeApiResp::success(())
 }
 

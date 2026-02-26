@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use crate::config::FlowId;
 use crate::database::{LandscapeFlowStore, LandscapeStore};
+use crate::error::LdError;
 
 use super::{
     manager::{ServiceManager, ServiceStarterTrait},
@@ -23,10 +24,25 @@ pub trait ControllerService {
         self.get_service().get_all_status().await
     }
 
-    async fn handle_service_config(&self, config: Self::Config) {
+    async fn handle_service_config(&self, config: Self::Config) -> Result<(), LdError> {
+        // 1. 先检查冲突，获取旧配置用于回滚
+        let old_config = self.get_repository().check_conflict(&config).await?;
+
+        // 2. 启动/更新服务
         if let Ok(()) = self.get_service().update_service(config.clone()).await {
-            self.get_repository().set(config).await.unwrap();
+            // 3. 写入 DB（内部再次检查 update_at）
+            match self.get_repository().checked_set(config).await {
+                Ok(_) => {}
+                Err(e) => {
+                    // 4. 写入失败，用旧配置回滚服务
+                    if let Some(old) = old_config {
+                        let _ = self.get_service().update_service(old).await;
+                    }
+                    return Err(e);
+                }
+            }
         }
+        Ok(())
     }
 
     async fn delete_and_stop_iface_service(&self, iface_name: Self::Id) -> Option<WatchService> {
@@ -67,6 +83,15 @@ pub trait ConfigController {
         add_result
     }
 
+    async fn checked_set(&self, config: Self::Config) -> Result<Self::Config, LdError> {
+        let old_configs = self.list().await;
+        let add_result = self.get_repository().checked_set(config).await?;
+        let new_configs = self.list().await;
+        self.after_update_config(new_configs, old_configs).await;
+        self.update_one_config(add_result.clone()).await;
+        Ok(add_result)
+    }
+
     async fn set_list(&self, configs: Vec<Self::Config>) {
         let old_configs = self.list().await;
         for config in configs.clone() {
@@ -75,6 +100,22 @@ pub trait ConfigController {
         let new_configs = self.list().await;
         self.after_update_config(new_configs, old_configs).await;
         self.update_many_config(configs).await;
+    }
+
+    async fn checked_set_list(&self, configs: Vec<Self::Config>) -> Result<(), LdError> {
+        // Phase 1: 预检查所有项的冲突
+        for config in &configs {
+            self.get_repository().check_conflict(config).await?;
+        }
+        // Phase 2: 逐个 checked_set（内部再次检查）
+        let old_configs = self.list().await;
+        for config in configs.clone() {
+            self.get_repository().checked_set(config).await?;
+        }
+        let new_configs = self.list().await;
+        self.after_update_config(new_configs, old_configs).await;
+        self.update_many_config(configs).await;
+        Ok(())
     }
 
     async fn list(&self) -> Vec<Self::Config> {

@@ -69,7 +69,7 @@ async fn handle_service_config(
     JsonBody(config): JsonBody<FirewallServiceConfig>,
 ) -> LandscapeApiResult<()> {
     state.validate_zone(&config).await?;
-    state.firewall_service.handle_service_config(config).await;
+    state.firewall_service.handle_service_config(config).await?;
     LandscapeApiResp::success(())
 }
 

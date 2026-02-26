@@ -67,7 +67,7 @@ async fn handle_iface_service_status(
     JsonBody(config): JsonBody<IfaceIpServiceConfig>,
 ) -> LandscapeApiResult<()> {
     state.validate_zone(&config).await?;
-    state.wan_ip_service.handle_service_config(config).await;
+    state.wan_ip_service.handle_service_config(config).await?;
     LandscapeApiResp::success(())
 }
 
