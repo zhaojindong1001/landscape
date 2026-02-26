@@ -2,7 +2,13 @@
 import { update_iface_pppd_config } from "@/api/service_pppd";
 import { PPPDServiceConfig } from "@/lib/pppd";
 import { computed, ref } from "vue";
+import type { SelectOption } from "naive-ui";
 import { useFrontEndStore } from "@/stores/front_end_config";
+
+const pluginOptions: SelectOption[] = [
+  { label: "rp-pppoe.so", value: "rp_pppoe" },
+  { label: "pppoe.so", value: "pppoe" },
+];
 
 const frontEndStore = useFrontEndStore();
 const show = defineModel<boolean>("show", { required: true });
@@ -107,6 +113,13 @@ async function confirm_config() {
           :type="frontEndStore.presentation_mode ? 'password' : 'text'"
           show-password-on="click"
           v-model:value="value.pppd_config.ac"
+        />
+      </n-form-item>
+
+      <n-form-item label="PPPoE Plugin">
+        <n-select
+          v-model:value="value.pppd_config.plugin"
+          :options="pluginOptions"
         />
       </n-form-item>
     </n-form>

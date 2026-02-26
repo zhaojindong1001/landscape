@@ -215,34 +215,34 @@ impl LandscapeApp {
     pub async fn shutdown(&self) {
         tracing::info!("Shutting down all services...");
 
-        if cfg!(debug_assertions) {
-            tracing::info!("Debug mode: keeping WAN IP and DHCP v4 services alive");
-            tokio::join!(
-                self.mss_clamp_service.get_service().stop_all(),
-                self.firewall_service.get_service().stop_all(),
-                self.nat_service.get_service().stop_all(),
-                self.route_wan_service.get_service().stop_all(),
-                self.route_lan_service.get_service().stop_all(),
-                self.ipv6_pd_service.get_service().stop_all(),
-                self.ipv6_ra_service.get_service().stop_all(),
-                self.pppd_service.get_service().stop_all(),
-                self.wifi_service.get_service().stop_all(),
-            );
-        } else {
-            tokio::join!(
-                self.mss_clamp_service.get_service().stop_all(),
-                self.firewall_service.get_service().stop_all(),
-                self.nat_service.get_service().stop_all(),
-                self.route_wan_service.get_service().stop_all(),
-                self.route_lan_service.get_service().stop_all(),
-                self.dhcp_v4_server_service.get_service().stop_all(),
-                self.ipv6_pd_service.get_service().stop_all(),
-                self.ipv6_ra_service.get_service().stop_all(),
-                self.wan_ip_service.get_service().stop_all(),
-                self.pppd_service.get_service().stop_all(),
-                self.wifi_service.get_service().stop_all(),
-            );
-        }
+        // if cfg!(debug_assertions) {
+        //     tracing::info!("Debug mode: keeping WAN IP and DHCP v4 services alive");
+        tokio::join!(
+            self.mss_clamp_service.get_service().stop_all(),
+            self.firewall_service.get_service().stop_all(),
+            self.nat_service.get_service().stop_all(),
+            self.route_wan_service.get_service().stop_all(),
+            self.route_lan_service.get_service().stop_all(),
+            self.ipv6_pd_service.get_service().stop_all(),
+            self.ipv6_ra_service.get_service().stop_all(),
+            self.pppd_service.get_service().stop_all(),
+            self.wifi_service.get_service().stop_all(),
+        );
+        // } else {
+        //     tokio::join!(
+        //         self.mss_clamp_service.get_service().stop_all(),
+        //         self.firewall_service.get_service().stop_all(),
+        //         self.nat_service.get_service().stop_all(),
+        //         self.route_wan_service.get_service().stop_all(),
+        //         self.route_lan_service.get_service().stop_all(),
+        //         self.dhcp_v4_server_service.get_service().stop_all(),
+        //         self.ipv6_pd_service.get_service().stop_all(),
+        //         self.ipv6_ra_service.get_service().stop_all(),
+        //         self.wan_ip_service.get_service().stop_all(),
+        //         self.pppd_service.get_service().stop_all(),
+        //         self.wifi_service.get_service().stop_all(),
+        //     );
+        // }
         tracing::info!("All service managers stopped");
 
         landscape_ebpf::map_setting::cleanup_pinned_maps();

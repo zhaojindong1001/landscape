@@ -14,4 +14,6 @@ pub enum PPPDServiceConfigs {
 
     /// Since 0.8.1
     Ac,
+
+    Plugin,
 }

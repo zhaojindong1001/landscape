@@ -27,6 +27,7 @@ export class PPPDServiceConfig {
       peer_id: obj.pppd_config?.peer_id ?? "",
       password: obj.pppd_config?.password ?? "",
       ac: obj.pppd_config?.ac ?? null,
+      plugin: obj.pppd_config?.plugin ?? "rp_pppoe",
     };
     this.update_at = obj?.update_at;
   }

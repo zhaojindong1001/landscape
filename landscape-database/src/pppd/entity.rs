@@ -26,6 +26,8 @@ pub struct Model {
 
     /// Since 0.8.1
     pub ac: Option<String>,
+
+    pub plugin: String,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -46,6 +48,8 @@ impl From<Model> for PPPDServiceConfig {
                 peer_id: entity.peer_id,
                 password: entity.password,
                 ac: entity.ac,
+                plugin: serde_json::from_value(serde_json::Value::String(entity.plugin))
+                    .unwrap_or_default(),
             },
         }
     }
@@ -71,5 +75,9 @@ impl UpdateActiveModel<ActiveModel> for PPPDServiceConfig {
         active.password = Set(self.pppd_config.password);
         active.update_at = Set(self.update_at);
         active.ac = Set(self.pppd_config.ac);
+        active.plugin = Set(serde_json::to_value(&self.pppd_config.plugin)
+            .ok()
+            .and_then(|v| v.as_str().map(String::from))
+            .unwrap_or_else(|| "rp_pppoe".to_string()));
     }
 }

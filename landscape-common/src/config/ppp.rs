@@ -1,3 +1,4 @@
+use std::fmt;
 use std::path::PathBuf;
 use std::{fs::OpenOptions, io::Write};
 
@@ -7,6 +8,24 @@ use crate::database::repository::LandscapeDBStore;
 use crate::service::ServiceConfigError;
 use crate::store::storev2::LandscapeStore;
 use crate::utils::time::get_f64_timestamp;
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[serde(rename_all = "snake_case")]
+pub enum PPPoEPlugin {
+    #[default]
+    RpPppoe,
+    Pppoe,
+}
+
+impl fmt::Display for PPPoEPlugin {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            PPPoEPlugin::RpPppoe => write!(f, "rp-pppoe.so"),
+            PPPoEPlugin::Pppoe => write!(f, "pppoe.so"),
+        }
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
@@ -57,6 +76,8 @@ pub struct PPPDConfig {
     pub peer_id: String,
     pub password: String,
     pub ac: Option<String>,
+    #[serde(default)]
+    pub plugin: PPPoEPlugin,
 }
 
 impl PPPDConfig {
@@ -133,13 +154,14 @@ persist
 #mtu 1492
 maxfail 1
 #holdoff 20
-plugin rp-pppoe.so
+plugin {plugin}
 nic-{ifacename}
 {ac_line}
 user "{user}"
 password "{pass}"
 ifname {ppp_iface_name}
 "#,
+            plugin = self.plugin,
             ifacename = attach_iface_name,
             ac_line = ac_line,
             user = self.peer_id,
